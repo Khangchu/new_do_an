@@ -1,0 +1,1 @@
+import { CollectionBeforeValidateHook } from 'payload'
