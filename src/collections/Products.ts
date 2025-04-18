@@ -44,7 +44,7 @@ export const Products: CollectionConfig = {
             },
             {
               name: 'category',
-              label: 'Danh mmục',
+              label: 'Danh mục',
               type: 'relationship',
               relationTo: 'categories',
               filterOptions: () => {

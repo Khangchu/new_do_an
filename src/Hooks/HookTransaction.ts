@@ -4,6 +4,7 @@ import {
   CollectionBeforeChangeHook,
   CollectionAfterReadHook,
   APIError,
+  CollectionAfterChangeHook,
 } from 'payload'
 import { v4 as uuidv4 } from 'uuid'
 export const showTitle: CollectionBeforeValidateHook = ({ data }) => {
@@ -47,7 +48,8 @@ export const showPrice: CollectionBeforeChangeHook = async ({ data, req }) => {
   let totalPriceVnd = 0
   let totalPriceUsd = 0
   if (data.info.order) {
-    const orderId = data.info.order.docs
+    const orderId = data.info.order
+    console.log('orderId', orderId)
     for (const item of orderId) {
       const findOrder = await req.payload.findByID({
         collection: 'orders',
@@ -334,5 +336,10 @@ export const changeStatus: CollectionBeforeValidateHook = ({ data }) => {
     } else {
       data.payment.status = 'pending' // Nếu chưa có, vẫn đang xử lý
     }
+  }
+}
+export const updateOrder: CollectionAfterChangeHook = async ({ doc, req }) => {
+  for (const orderId of doc.info.order) {
+    console.log(doc)
   }
 }

@@ -37,7 +37,7 @@ export const goodsReceivedNote: CollectionConfig = {
           fields: [
             {
               name: 'chose',
-              label: 'Loại xuất',
+              label: 'Loại nhập',
               type: 'select',
               options: [
                 { label: 'sản phẩm', value: 'sanpham' },

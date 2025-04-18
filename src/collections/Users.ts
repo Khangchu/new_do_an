@@ -1,6 +1,6 @@
 import { type CollectionConfig } from 'payload'
 import { hero, Skill, WorkTime, employee } from '@/fields/Fields_User'
-import { BeforeValidateUser, CheckValueUsers } from '@/Hooks/CheckValueUsees'
+import { BeforeValidateUser, CheckValueUsers, BeforeLoginUser } from '@/Hooks/CheckValueUsees'
 
 export const Users: CollectionConfig = {
   slug: 'users',
@@ -10,7 +10,7 @@ export const Users: CollectionConfig = {
     group: 'nhan su',
   },
   access: {
-    read: ({ req, data }) => {
+    read: ({ req }) => {
       if (req.user?.role === 'admin') {
         return true
       }
@@ -22,7 +22,7 @@ export const Users: CollectionConfig = {
     },
     update: ({ req }) => {
       if (req.user?.role === 'admin') {
-        return true // Admin có thể chỉnh sửa
+        return true
       }
       return {
         id: {
@@ -34,9 +34,7 @@ export const Users: CollectionConfig = {
     delete: ({ req }) => {
       return req.user?.role === 'admin'
     },
-    create: ({ req }) => {
-      return req.user?.role === 'admin'
-    },
+    create: () => true,
   },
   fields: [
     {
@@ -80,6 +78,24 @@ export const Users: CollectionConfig = {
                   }
                   return false
                 },
+              },
+            },
+            {
+              name: 'status',
+              type: 'select',
+              defaultValue: 'pending',
+              options: [
+                { label: 'Chờ phê duyệt', value: 'pending' },
+                { label: 'Đã duyệt', value: 'approved' },
+                { label: 'Từ chối', value: 'rejected' },
+              ],
+              required: true,
+              admin: {
+                position: 'sidebar',
+              },
+              access: {
+                read: () => true,
+                update: ({ req: { user } }) => user?.role === 'admin',
               },
             },
             {
@@ -214,9 +230,6 @@ export const Users: CollectionConfig = {
         {
           fields: [hero],
           label: 'Học Vấn',
-          admin: {
-            condition: () => false,
-          },
         },
         {
           fields: [Skill],
@@ -236,5 +249,6 @@ export const Users: CollectionConfig = {
   hooks: {
     beforeValidate: [BeforeValidateUser],
     beforeChange: [CheckValueUsers],
+    beforeLogin: [BeforeLoginUser],
   },
 }

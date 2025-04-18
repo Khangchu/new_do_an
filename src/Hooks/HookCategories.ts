@@ -13,7 +13,6 @@ export const BeforeChange: CollectionBeforeChangeHook = ({ data }) => {
     throw new APIError(`Không được để trống:${throwError}`, 400)
   }
 }
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const ensureUniqueSlug = async ({ data, req, operation }: any) => {
   if (!data.slug && data.title) {

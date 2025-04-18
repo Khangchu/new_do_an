@@ -14,7 +14,6 @@ export const showTitle: CollectionBeforeValidateHook = ({ data, operation }) => 
     }
   }
 }
-
 export const rondomID: CollectionBeforeValidateHook = ({ data, operation }) => {
   if (!data) return
   if (operation === 'create') {
@@ -24,7 +23,6 @@ export const rondomID: CollectionBeforeValidateHook = ({ data, operation }) => {
     }
   }
 }
-
 export const totalPrice: CollectionAfterReadHook = ({ doc }) => {
   const convertToNumber = (str: any) => {
     if (str == null || str === '') return 0
@@ -64,7 +62,6 @@ export const totalPrice: CollectionAfterReadHook = ({ doc }) => {
     })
   }
 }
-
 export const checkValue: CollectionBeforeValidateHook = ({ data }) => {
   if (!data) return
   const requiredFields = {
@@ -85,7 +82,6 @@ export const checkValue: CollectionBeforeValidateHook = ({ data }) => {
     throw new APIError('Không được để trống cả 2 mục vật liệu và máy móc', 400)
   }
 }
-
 export const showPrice: CollectionBeforeChangeHook = async ({
   data,
   req,
@@ -186,7 +182,6 @@ export const showPrice: CollectionBeforeChangeHook = async ({
     }
   }
 }
-
 export const changeTypePrice: CollectionBeforeChangeHook = ({ data, originalDoc, operation }) => {
   if (operation === 'update') {
     const EXCHANGE_RATE = 25000

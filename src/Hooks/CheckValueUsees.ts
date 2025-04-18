@@ -1,7 +1,8 @@
 import {
   CollectionBeforeChangeHook,
   CollectionBeforeValidateHook,
-  CollectionBeforeReadHook,
+  CollectionBeforeLoginHook,
+  AuthenticationError,
 } from 'payload'
 import { APIError } from 'payload'
 export const CheckValueUsers: CollectionBeforeChangeHook = async ({ data, req, operation }) => {
@@ -88,4 +89,9 @@ export const BeforeValidateUser: CollectionBeforeValidateHook = async ({ data })
     data.userID = `ID-${Date.now()}${Math.floor(Math.random() * 10000)}`
   }
   data.title = `${data.userID}-${data.fullName || 'Unknown'}`
+}
+export const BeforeLoginUser: CollectionBeforeLoginHook = async ({ user }) => {
+  if (user.status !== 'approved') {
+    throw new AuthenticationError(() => 'Tài khoản của bạn đang chờ phê duyệt bởi quản trị viên')
+  }
 }

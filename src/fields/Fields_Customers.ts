@@ -62,13 +62,31 @@ export const ordersAndDealAndDeal: Field = {
   fields: [
     {
       name: 'orders',
-      label: 'đơn hàng',
-      type: 'text',
+      label: 'Đơn hàng',
+      type: 'group',
+      fields: [
+        {
+          name: 'orderId',
+          label: '',
+          type: 'join',
+          collection: 'orders',
+          on: 'customerName',
+        },
+      ],
     },
     {
       name: 'deal',
-      label: 'giao dịch',
-      type: 'text',
+      label: 'Giao dịch',
+      type: 'group',
+      fields: [
+        {
+          name: 'dealId',
+          label: '',
+          type: 'join',
+          collection: 'transactions',
+          on: 'info.customer',
+        },
+      ],
     },
   ],
 }

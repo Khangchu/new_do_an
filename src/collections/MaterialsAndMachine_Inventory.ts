@@ -46,6 +46,12 @@ export const MaterialsAndMachine_Inventory: CollectionConfig = {
               type: 'text',
             },
             {
+              name: 'factories',
+              label: 'Nhà máy chực thuộc',
+              type: 'relationship',
+              relationTo: 'factories',
+            },
+            {
               name: 'location',
               label: 'Địa Chỉ',
               type: 'textarea',

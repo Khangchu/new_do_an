@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { ApiError } from 'next/dist/server/api-utils'
 import {
   CollectionBeforeValidateHook,
   CollectionBeforeChangeHook,

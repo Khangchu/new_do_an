@@ -18,7 +18,6 @@ export const Transactions: CollectionConfig = {
   },
   admin: {
     useAsTitle: 'title',
-    defaultColumns: ['transactionId', 'customer', 'dateMake', 'status'],
   },
   fields: [
     {
@@ -45,11 +44,34 @@ export const Transactions: CollectionConfig = {
         {
           name: 'order',
           label: 'Đơn Hàng Liên Quan',
-          type: 'join',
-          collection: 'orders',
-          on: 'transactions',
+          type: 'relationship',
+          relationTo: 'orders',
+          hasMany: true,
           admin: {
             allowCreate: false,
+          },
+          filterOptions: async ({ data, req }) => {
+            if (!data) return false
+            console.log('data', data?.info?.customer)
+            if (data?.info?.customer) {
+              const find = await req.payload.findByID({
+                collection: 'customers',
+                id: data.info.customer,
+              })
+              const findOrder = find.ordersAndDeal?.orders?.orderId?.docs
+                ?.filter((item) =>
+                  typeof item === 'object' && item !== null
+                    ? item.transactions !== undefined
+                    : item,
+                )
+                .map((item) => (typeof item === 'object' && item !== null ? item.id : item))
+              return {
+                id: {
+                  not_in: findOrder !== undefined ? findOrder : null,
+                },
+              }
+            }
+            return false
           },
         },
         {
@@ -100,7 +122,7 @@ export const Transactions: CollectionConfig = {
             },
             {
               name: 'discountValue',
-              label: 'Giá trị chiết khấu',
+              label: 'discountValue',
               type: 'text',
             },
           ],

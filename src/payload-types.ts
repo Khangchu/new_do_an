@@ -132,8 +132,13 @@ export interface Config {
     orders: {
       goodsDeliveryNote: 'goodsDeliveryNote';
     };
-    transactions: {
-      'info.order': 'orders';
+    customers: {
+      'ordersAndDeal.orders.orderId': 'orders';
+      'ordersAndDeal.deal.dealId': 'transactions';
+    };
+    factories: {
+      producInventory: 'Products_Inventory';
+      materialAndMachineInventory: 'MaterialsAndMachine_Inventory';
     };
   };
   collectionsSelect: {
@@ -206,6 +211,7 @@ export interface User {
   id: string;
   title?: string | null;
   role?: ('admin' | 'employee') | null;
+  status: 'pending' | 'approved' | 'rejected';
   userID?: string | null;
   fullName?: string | null;
   sex?: ('Nam' | 'Nữ') | null;
@@ -228,8 +234,10 @@ export interface User {
   };
   Skill?: {};
   employee?: {
-    position?: ('manager' | 'deputyManager' | 'employees') | null;
+    position?: ('manager' | 'deputyManager' | 'employees' | 'director') | null;
+    typeDepartment?: ('production' | 'business' | 'warehouse' | 'productDevelopment') | null;
     department?: (string | null) | Department;
+    regionalManagement?: string | null;
     salary?: number | null;
     assignedTasks?: (string | null) | Task;
   };
@@ -274,15 +282,19 @@ export interface Media {
  */
 export interface Department {
   id: string;
-  nameDepartment?: string | null;
   idDepartment?: string | null;
+  typeDepartment?: ('production' | 'business' | 'warehouse' | 'productDevelopment') | null;
+  nameDepartment?: string | null;
+  manager?: (string | null) | User;
   Note?: string | null;
+  establishedDate?: string | null;
   title?: string | null;
   Os_Field?: {
     manager?: (string | null) | User;
     deputyManager?: (string | null) | User;
     employees?: (string | User)[] | null;
   };
+  uploadFile?: (string | Media)[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -579,6 +591,7 @@ export interface Color {
 export interface Products_Inventory {
   id: string;
   inventoryName?: string | null;
+  factories?: (string | null) | Factory;
   address?: string | null;
   employee?: (string | null) | User;
   phone?: string | null;
@@ -618,6 +631,102 @@ export interface Products_Inventory {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "factories".
+ */
+export interface Factory {
+  id: string;
+  title?: string | null;
+  idf?: string | null;
+  regionFactory?: ('north' | 'central' | 'south') | null;
+  managerFactory?: (string | null) | User;
+  info?: {
+    idFactory?: string | null;
+    name?: string | null;
+    location?: string | null;
+    region?: ('north' | 'central' | 'south') | null;
+    department?: (string | Department)[] | null;
+    manager?: (string | null) | User;
+    phone?: number | null;
+    email?: string | null;
+  };
+  workingTime?: {
+    start?: string | null;
+    end?: string | null;
+  };
+  productionAreas?:
+    | {
+        typeArea?:
+          | (
+              | 'cutting'
+              | 'sewing'
+              | 'finishing'
+              | 'packaging'
+              | 'qualityControl'
+              | 'printing'
+              | 'embroidery'
+              | 'molding'
+              | 'assembly'
+              | 'qualityCheck'
+              | 'processing'
+            )
+          | null;
+        areaCore?:
+          | {
+              areaName?: string | null;
+              supervisor?: (string | null) | User;
+              maxWorkers?: number | null;
+              soluongWorker?: number | null;
+              employee?: (string | User)[] | null;
+              workShifts?:
+                | {
+                    shiftName?: string | null;
+                    start?: string | null;
+                    end?: string | null;
+                    id?: string | null;
+                  }[]
+                | null;
+              machines?:
+                | {
+                    machineName?: (string | null) | Machine;
+                    status?: ('active' | 'maintenance' | 'broken') | null;
+                    id?: string | null;
+                  }[]
+                | null;
+              id?: string | null;
+            }[]
+          | null;
+        id?: string | null;
+      }[]
+    | null;
+  productionStats?:
+    | {
+        product?: (string | null) | Product;
+        date?: string | null;
+        dailyOutput?:
+          | {
+              soluong?: number | null;
+              unit?: ('cai' | 'bo' | 'doi') | null;
+              id?: string | null;
+            }[]
+          | null;
+        id?: string | null;
+      }[]
+    | null;
+  producInventory?: {
+    docs?: (string | Products_Inventory)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  materialAndMachineInventory?: {
+    docs?: (string | MaterialsAndMachine_Inventory)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "MaterialsAndMachine_Inventory".
  */
 export interface MaterialsAndMachine_Inventory {
@@ -625,6 +734,7 @@ export interface MaterialsAndMachine_Inventory {
   titel?: string | null;
   inventoryId?: string | null;
   inventoryName?: string | null;
+  factories?: (string | null) | Factory;
   location?: string | null;
   managerInventory?: (string | null) | User;
   phoneInventory?: string | null;
@@ -880,8 +990,20 @@ export interface Customer {
   address?: string | null;
   typeCustomers?: ('Individual' | 'Stores' | 'Distributor' | 'SportsTeam' | 'school') | null;
   ordersAndDeal?: {
-    orders?: string | null;
-    deal?: string | null;
+    orders?: {
+      orderId?: {
+        docs?: (string | Order)[];
+        hasNextPage?: boolean;
+        totalDocs?: number;
+      };
+    };
+    deal?: {
+      dealId?: {
+        docs?: (string | Transaction)[];
+        hasNextPage?: boolean;
+        totalDocs?: number;
+      };
+    };
   };
   updatedAt: string;
   createdAt: string;
@@ -895,11 +1017,7 @@ export interface Transaction {
   title?: string | null;
   info?: {
     transactionId?: string | null;
-    order?: {
-      docs?: (string | Order)[];
-      hasNextPage?: boolean;
-      totalDocs?: number;
-    };
+    order?: (string | Order)[] | null;
     customer?: (string | null) | Customer;
     dateMake?: string | null;
   };
@@ -1197,51 +1315,6 @@ export interface Productprice {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "factories".
- */
-export interface Factory {
-  id: string;
-  title?: string | null;
-  name?: string | null;
-  location?: string | null;
-  manager?: (string | null) | User;
-  phone?: number | null;
-  productionAreas?:
-    | {
-        areaName?: string | null;
-        supervisor?: (string | null) | User;
-        employee?: (string | User)[] | null;
-        machines?:
-          | {
-              machineName?: (string | null) | Machine;
-              status?: ('active' | 'maintenance' | 'broken') | null;
-              id?: string | null;
-            }[]
-          | null;
-        id?: string | null;
-      }[]
-    | null;
-  productionStats?:
-    | {
-        product?: (string | null) | Product;
-        dailyOutput?:
-          | {
-              soluong?: number | null;
-              unit?: ('cai' | 'bo' | 'doi') | null;
-              id?: string | null;
-            }[]
-          | null;
-        date?: string | null;
-        id?: string | null;
-      }[]
-    | null;
-  producInventory?: string | null;
-  materialAndMachineInventory?: string | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "test".
  */
 export interface Test {
@@ -1422,6 +1495,7 @@ export interface PayloadMigration {
 export interface UsersSelect<T extends boolean = true> {
   title?: T;
   role?: T;
+  status?: T;
   userID?: T;
   fullName?: T;
   sex?: T;
@@ -1449,7 +1523,9 @@ export interface UsersSelect<T extends boolean = true> {
     | T
     | {
         position?: T;
+        typeDepartment?: T;
         department?: T;
+        regionalManagement?: T;
         salary?: T;
         assignedTasks?: T;
       };
@@ -1487,9 +1563,12 @@ export interface MediaSelect<T extends boolean = true> {
  * via the `definition` "department_select".
  */
 export interface DepartmentSelect<T extends boolean = true> {
-  nameDepartment?: T;
   idDepartment?: T;
+  typeDepartment?: T;
+  nameDepartment?: T;
+  manager?: T;
   Note?: T;
+  establishedDate?: T;
   title?: T;
   Os_Field?:
     | T
@@ -1498,6 +1577,7 @@ export interface DepartmentSelect<T extends boolean = true> {
         deputyManager?: T;
         employees?: T;
       };
+  uploadFile?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1756,6 +1836,7 @@ export interface MaterialsAndMachine_InventorySelect<T extends boolean = true> {
   titel?: T;
   inventoryId?: T;
   inventoryName?: T;
+  factories?: T;
   location?: T;
   managerInventory?: T;
   phoneInventory?: T;
@@ -2110,8 +2191,16 @@ export interface CustomersSelect<T extends boolean = true> {
   ordersAndDeal?:
     | T
     | {
-        orders?: T;
-        deal?: T;
+        orders?:
+          | T
+          | {
+              orderId?: T;
+            };
+        deal?:
+          | T
+          | {
+              dealId?: T;
+            };
       };
   updatedAt?: T;
   createdAt?: T;
@@ -2218,6 +2307,7 @@ export interface TransactionsSelect<T extends boolean = true> {
  */
 export interface Products_InventorySelect<T extends boolean = true> {
   inventoryName?: T;
+  factories?: T;
   address?: T;
   employee?: T;
   phone?: T;
@@ -2263,21 +2353,54 @@ export interface Products_InventorySelect<T extends boolean = true> {
  */
 export interface FactoriesSelect<T extends boolean = true> {
   title?: T;
-  name?: T;
-  location?: T;
-  manager?: T;
-  phone?: T;
+  idf?: T;
+  regionFactory?: T;
+  managerFactory?: T;
+  info?:
+    | T
+    | {
+        idFactory?: T;
+        name?: T;
+        location?: T;
+        region?: T;
+        department?: T;
+        manager?: T;
+        phone?: T;
+        email?: T;
+      };
+  workingTime?:
+    | T
+    | {
+        start?: T;
+        end?: T;
+      };
   productionAreas?:
     | T
     | {
-        areaName?: T;
-        supervisor?: T;
-        employee?: T;
-        machines?:
+        typeArea?: T;
+        areaCore?:
           | T
           | {
-              machineName?: T;
-              status?: T;
+              areaName?: T;
+              supervisor?: T;
+              maxWorkers?: T;
+              soluongWorker?: T;
+              employee?: T;
+              workShifts?:
+                | T
+                | {
+                    shiftName?: T;
+                    start?: T;
+                    end?: T;
+                    id?: T;
+                  };
+              machines?:
+                | T
+                | {
+                    machineName?: T;
+                    status?: T;
+                    id?: T;
+                  };
               id?: T;
             };
         id?: T;
@@ -2286,6 +2409,7 @@ export interface FactoriesSelect<T extends boolean = true> {
     | T
     | {
         product?: T;
+        date?: T;
         dailyOutput?:
           | T
           | {
@@ -2293,7 +2417,6 @@ export interface FactoriesSelect<T extends boolean = true> {
               unit?: T;
               id?: T;
             };
-        date?: T;
         id?: T;
       };
   producInventory?: T;

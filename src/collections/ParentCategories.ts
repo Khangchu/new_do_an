@@ -79,7 +79,7 @@ export const Categories: CollectionConfig = {
       defaultValue: 'active',
     },
   ],
-  // hooks: {
-  //   beforeChange: [BeforeChange, ensureUniqueSlug],
-  // },
+  hooks: {
+    beforeChange: [BeforeChange, ensureUniqueSlug],
+  },
 }

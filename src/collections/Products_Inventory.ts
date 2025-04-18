@@ -29,6 +29,12 @@ export const Products_Inventory: CollectionConfig = {
               type: 'text',
             },
             {
+              name: 'factories',
+              label: 'Nhà máy chực thuộc',
+              type: 'relationship',
+              relationTo: 'factories',
+            },
+            {
               name: 'address',
               label: 'Địa chỉ',
               type: 'text',

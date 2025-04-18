@@ -11,26 +11,55 @@ export const Os_Field: Field = {
       type: 'relationship',
       label: 'Trưởng phòng',
       relationTo: 'users',
-      filterOptions: async ({ req, data }) => {
-        const checkManager = await req.payload.find({
+      filterOptions: async ({ req, data, siblingData }) => {
+        const siblingDataId = siblingData as { manager: string } | undefined
+        const id = []
+        const department = await req.payload.find({
           collection: 'department',
-          where: { 'Os_Field.manager': { exists: true } },
         })
-        const excludedManagers = checkManager.docs
-          .map((doc) =>
-            typeof doc?.Os_Field?.manager === 'object' && doc?.Os_Field?.manager !== null
-              ? doc?.Os_Field?.manager.id
-              : doc?.Os_Field?.manager,
-          )
-          .filter((id) => id !== data?.Os_Field?.manager)
+        department.docs.forEach((doc) => {
+          if (doc.Os_Field?.manager) {
+            id.push(
+              typeof doc.Os_Field?.manager === 'object' && doc.Os_Field?.manager !== null
+                ? doc.Os_Field?.manager?.id
+                : doc.Os_Field?.manager,
+            )
+          }
+          if (doc.Os_Field?.employees) {
+            doc.Os_Field?.employees.forEach((emp) => {
+              if (typeof emp === 'object' && emp !== null) {
+                id.push(emp.id)
+              }
+            })
+          }
+          if (doc.Os_Field?.deputyManager) {
+            id.push(
+              typeof doc.Os_Field?.deputyManager === 'object' &&
+                doc.Os_Field?.deputyManager !== null
+                ? doc.Os_Field?.deputyManager?.id
+                : doc.Os_Field?.deputyManager,
+            )
+          }
+        })
+        if (data?.Os_Field?.manager) {
+          id.push(data?.Os_Field?.manager)
+        }
+        if (data?.Os_Field?.deputyManager) {
+          id.push(data?.Os_Field?.deputyManager)
+        }
+        if (data?.Os_Field?.employees) {
+          data?.Os_Field?.employees.forEach((emp: any) => {
+            if (typeof emp === 'object' && emp !== null) {
+              id.push(emp.id)
+            }
+          })
+        }
         return {
-          and: [
-            { 'employee.position': { equals: 'manager' } },
-            {
-              or: [{ id: { not_in: excludedManagers } }],
-            },
+          or: [
+            { id: { not_in: id !== undefined ? id : null } },
+            { id: { equals: siblingDataId?.manager } },
           ],
-        } as any
+        }
       },
     },
     {
@@ -38,27 +67,55 @@ export const Os_Field: Field = {
       type: 'relationship',
       label: 'Phó phòng (nếu có)',
       relationTo: 'users',
-      filterOptions: async ({ req, data }) => {
-        const checkDeputyManager = await req.payload.find({
+      filterOptions: async ({ req, data, siblingData }) => {
+        const siblingDataId = siblingData as { deputyManager: string } | undefined
+        const id = []
+        const department = await req.payload.find({
           collection: 'department',
-          where: { 'Os_Field.deputyManager': { exists: true } },
         })
-        const excludedDeputyManagers = checkDeputyManager.docs
-          .map((doc) =>
-            typeof doc?.Os_Field?.deputyManager === 'object' &&
-            doc?.Os_Field?.deputyManager !== null
-              ? doc?.Os_Field?.deputyManager.id
-              : doc?.Os_Field?.deputyManager,
-          )
-          .filter((id) => id && id !== data?.Os_Field?.deputyManager)
+        department.docs.forEach((doc) => {
+          if (doc.Os_Field?.manager) {
+            id.push(
+              typeof doc.Os_Field?.manager === 'object' && doc.Os_Field?.manager !== null
+                ? doc.Os_Field?.manager?.id
+                : doc.Os_Field?.manager,
+            )
+          }
+          if (doc.Os_Field?.employees) {
+            doc.Os_Field?.employees.forEach((emp) => {
+              if (typeof emp === 'object' && emp !== null) {
+                id.push(emp.id)
+              }
+            })
+          }
+          if (doc.Os_Field?.deputyManager) {
+            id.push(
+              typeof doc.Os_Field?.deputyManager === 'object' &&
+                doc.Os_Field?.deputyManager !== null
+                ? doc.Os_Field?.deputyManager?.id
+                : doc.Os_Field?.deputyManager,
+            )
+          }
+        })
+        if (data?.Os_Field?.manager) {
+          id.push(data?.Os_Field?.manager)
+        }
+        if (data?.Os_Field?.deputyManager) {
+          id.push(data?.Os_Field?.deputyManager)
+        }
+        if (data?.Os_Field?.employees) {
+          data?.Os_Field?.employees.forEach((emp: any) => {
+            if (typeof emp === 'object' && emp !== null) {
+              id.push(emp.id)
+            }
+          })
+        }
         return {
-          and: [
-            { 'employee.position': { equals: 'deputyManager' } },
-            {
-              or: [{ id: { not_in: excludedDeputyManagers } }],
-            },
+          or: [
+            { id: { not_in: id !== undefined ? id : null } },
+            { id: { equals: siblingDataId?.deputyManager } },
           ],
-        } as any
+        }
       },
     },
     {
@@ -67,27 +124,55 @@ export const Os_Field: Field = {
       label: 'Nhân viên',
       relationTo: 'users',
       hasMany: true,
-      filterOptions: async ({ req, data }) => {
-        const checkEmployees = await req.payload.find({
+      filterOptions: async ({ req, data, siblingData }) => {
+        const siblingDataId = siblingData as { employees: string[] } | undefined
+        const id = []
+        const department = await req.payload.find({
           collection: 'department',
-          where: {
-            'Os_Field.employees': { exists: true },
-          },
         })
-        const docCheckEmployees = checkEmployees?.docs ?? []
-        const checkOutEmployees = docCheckEmployees.flatMap((doc) =>
-          (doc?.Os_Field?.employees ?? [])
-            .map((emp) => (typeof emp === 'object' && emp !== null ? emp.id : emp))
-            .filter((id) => id && !data?.Os_Field?.employees?.includes(id)),
-        )
+        department.docs.forEach((doc) => {
+          if (doc.Os_Field?.manager) {
+            id.push(
+              typeof doc.Os_Field?.manager === 'object' && doc.Os_Field?.manager !== null
+                ? doc.Os_Field?.manager?.id
+                : doc.Os_Field?.manager,
+            )
+          }
+          if (doc.Os_Field?.employees) {
+            doc.Os_Field?.employees.forEach((emp) => {
+              if (typeof emp === 'object' && emp !== null) {
+                id.push(emp.id)
+              }
+            })
+          }
+          if (doc.Os_Field?.deputyManager) {
+            id.push(
+              typeof doc.Os_Field?.deputyManager === 'object' &&
+                doc.Os_Field?.deputyManager !== null
+                ? doc.Os_Field?.deputyManager?.id
+                : doc.Os_Field?.deputyManager,
+            )
+          }
+        })
+        if (data?.Os_Field?.manager) {
+          id.push(data?.Os_Field?.manager)
+        }
+        if (data?.Os_Field?.deputyManager) {
+          id.push(data?.Os_Field?.deputyManager)
+        }
+        if (data?.Os_Field?.employees) {
+          data?.Os_Field?.employees.forEach((emp: any) => {
+            if (typeof emp === 'object' && emp !== null) {
+              id.push(emp.id)
+            }
+          })
+        }
         return {
-          and: [
-            { 'employee.position': { equals: 'employees' } },
-            {
-              or: [{ id: { not_in: checkOutEmployees } }],
-            },
+          or: [
+            { id: { not_in: id !== undefined ? id : null } },
+            { id: { in: siblingDataId?.employees } },
           ],
-        } as any
+        }
       },
     },
   ],

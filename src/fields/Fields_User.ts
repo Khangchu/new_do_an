@@ -95,6 +95,21 @@ export const employee: Field = {
           label: 'Nhân Viên',
           value: 'employees',
         },
+        {
+          label: 'Giám Đốc',
+          value: 'director',
+        },
+      ],
+    },
+    {
+      name: 'typeDepartment',
+      label: 'Loại phòng ban',
+      type: 'select',
+      options: [
+        { label: 'Sản xuất', value: 'production' },
+        { label: 'Kinh doanh', value: 'business' },
+        { label: 'kho', value: 'warehouse' },
+        { label: 'Phát triển sản phẩm', value: 'productDevelopment' },
       ],
     },
     {
@@ -105,10 +120,24 @@ export const employee: Field = {
       hasMany: false,
       admin: {
         condition: (data) => {
-          if (!data?.userID) return false
+          if (
+            (!data?.userID && !data.employee.department) ||
+            data.employee?.position === 'director'
+          )
+            return false
           return true
         },
         readOnly: true,
+      },
+    },
+    {
+      name: 'regionalManagement',
+      label: 'phòng ban quản lý',
+      type: 'text',
+      admin: {
+        condition: (data) => {
+          return data.employee?.position === 'director' ? true : false
+        },
       },
     },
     {
