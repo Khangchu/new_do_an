@@ -6,11 +6,30 @@ import {
   showReport,
   totalPriceReport,
   checkValue,
+  noEmtyValue,
+  canReadProductInventory,
+  canUpdateProductInventory,
 } from '@/Hooks/HookProductsInventory'
+import { accessAdmin } from '@/access/accessAll'
 export const Products_Inventory: CollectionConfig = {
   slug: 'Products_Inventory',
   admin: {
     useAsTitle: 'inventoryName',
+    defaultColumns: ['inventoryName', 'employee', 'address', 'factories'],
+    group: 'Quản lý Kho hàng',
+    hidden: ({ user }) => {
+      if (!user) return true
+      if (user.role === 'admin' || user.employee?.typeDepartment === 'warehouse') {
+        return false
+      }
+      return true
+    },
+  },
+  access: {
+    read: canReadProductInventory,
+    update: canUpdateProductInventory,
+    create: accessAdmin,
+    delete: accessAdmin,
   },
   labels: {
     singular: 'Kho Sản Phẩm',
@@ -27,23 +46,40 @@ export const Products_Inventory: CollectionConfig = {
               name: 'inventoryName',
               label: 'Tên Kho Hàng',
               type: 'text',
+              access: {
+                update: ({ req }) => req.user?.role === 'admin',
+              },
             },
             {
               name: 'factories',
               label: 'Nhà máy chực thuộc',
               type: 'relationship',
               relationTo: 'factories',
+              access: {
+                update: ({ req }) => req.user?.role === 'admin',
+              },
             },
             {
               name: 'address',
               label: 'Địa chỉ',
               type: 'text',
+              access: {
+                update: ({ req }) => req.user?.role === 'admin',
+              },
             },
             {
               name: 'employee',
-              label: 'Người quản lý',
+              label: 'Phòng ban quản lý',
               type: 'relationship',
-              relationTo: 'users',
+              relationTo: 'department',
+              filterOptions: () => {
+                return {
+                  typeDepartment: { equals: 'warehouse' },
+                }
+              },
+              access: {
+                update: ({ req }) => req.user?.role === 'admin',
+              },
             },
             {
               name: 'phone',
@@ -59,11 +95,9 @@ export const Products_Inventory: CollectionConfig = {
                 const regex = /^0\d{9}$/
                 return regex.test(value) ? true : 'Số điện thoại gồm 10 số'
               },
-            },
-            {
-              name: 'area',
-              label: 'Diên tích kho',
-              type: 'text',
+              access: {
+                update: ({ req }) => req.user?.role === 'admin',
+              },
             },
           ],
         },
@@ -83,6 +117,9 @@ export const Products_Inventory: CollectionConfig = {
                   label: 'ID Sản Phẩm',
                   type: 'relationship',
                   relationTo: 'products',
+                  admin: {
+                    allowCreate: false,
+                  },
                 },
                 {
                   name: 'danhmuc',
@@ -223,12 +260,22 @@ export const Products_Inventory: CollectionConfig = {
             {
               name: 'deliveryNote',
               label: 'Phiếu xuất',
-              type: 'text',
+              type: 'join',
+              collection: 'goodsDeliveryNote',
+              on: 'inventory',
+              admin: {
+                allowCreate: false,
+              },
             },
             {
               name: 'receievedNote',
-              label: 'Phiếu nhập',
-              type: 'text',
+              label: 'Lịch sử nhập kho',
+              type: 'join',
+              collection: 'goodsReceiveNote',
+              on: 'inventoryProduce',
+              admin: {
+                allowCreate: false,
+              },
             },
           ],
         },
@@ -238,6 +285,6 @@ export const Products_Inventory: CollectionConfig = {
   hooks: {
     beforeChange: [showPrice, showReport],
     afterRead: [totalPrice, totalPriceReport],
-    beforeValidate: [checkValue, checkValueProduct],
+    beforeValidate: [checkValue, checkValueProduct, noEmtyValue],
   },
 }

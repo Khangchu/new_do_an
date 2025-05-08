@@ -1,6 +1,13 @@
 import { CollectionConfig } from 'payload'
 import { tsMachine, maintenance, performance, regulation } from '@/fields/Fields_Machine'
-import { checkValue, dateMaintenance, date } from '@/Hooks/HookMachine'
+import {
+  checkValue,
+  dateMaintenance,
+  date,
+  randomId,
+  canReadMachine,
+  canUpdateCreateDeleteMachine,
+} from '@/Hooks/HookMachine'
 
 export const machine: CollectionConfig = {
   slug: 'machine',
@@ -8,8 +15,29 @@ export const machine: CollectionConfig = {
     singular: 'Máy móc',
     plural: 'Máy móc',
   },
+
   admin: {
     useAsTitle: 'nameMachine',
+    defaultColumns: ['machineId', 'nameMachine', 'machineType', 'suppliers'],
+    group: 'Quản lý vật liệu và máy móc',
+    hidden: ({ user }) => {
+      if (!user) return true
+      if (
+        user?.employee?.typeDepartment === 'business' ||
+        user?.employee?.typeDepartment === 'productDevelopment' ||
+        user?.employee?.typeDepartment === 'warehouse'
+      ) {
+        return false
+      }
+      if (user.role === 'admin') return false
+      return true
+    },
+  },
+  access: {
+    read: canReadMachine,
+    update: canUpdateCreateDeleteMachine,
+    delete: canUpdateCreateDeleteMachine,
+    create: canUpdateCreateDeleteMachine,
   },
   fields: [
     {
@@ -83,7 +111,9 @@ export const machine: CollectionConfig = {
             {
               name: 'install',
               label: 'Vị trí lắp đặt',
-              type: 'text',
+              type: 'join',
+              collection: 'factories',
+              on: 'productionAreas.areaCore.machines.machineName',
             },
           ],
         },
@@ -103,12 +133,24 @@ export const machine: CollectionConfig = {
           label: 'Quy định sử dụng & An toàn lao động',
           fields: [regulation],
         },
+        {
+          label: 'Kho',
+          fields: [
+            {
+              name: 'inventory',
+              label: '',
+              type: 'join',
+              collection: 'MaterialsAndMachine_Inventory',
+              on: 'machine.machineName',
+            },
+          ],
+        },
       ],
     },
   ],
   hooks: {
     beforeChange: [checkValue],
-    beforeValidate: [dateMaintenance],
+    beforeValidate: [randomId, dateMaintenance],
     afterRead: [date],
   },
 }

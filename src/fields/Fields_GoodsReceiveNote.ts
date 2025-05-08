@@ -9,6 +9,9 @@ export const produce: Field = {
     {
       name: 'produce1',
       type: 'array',
+      admin: {
+        initCollapsed: true,
+      },
       fields: [
         {
           name: 'sanpham',
@@ -16,6 +19,7 @@ export const produce: Field = {
           type: 'relationship',
           relationTo: 'products',
           admin: {
+            allowCreate: false,
             condition: (data) => {
               if (!data.inventoryProduce) return false
               return true
@@ -102,6 +106,9 @@ export const materials: Field = {
       name: 'materialsProduce',
       label: '',
       type: 'array',
+      admin: {
+        initCollapsed: true,
+      },
       fields: [
         {
           name: 'materialsName',
@@ -109,6 +116,7 @@ export const materials: Field = {
           type: 'relationship',
           relationTo: 'materials',
           admin: {
+            allowCreate: false,
             condition: (data) => !!data.inventory,
           },
           filterOptions: async ({ data, req }) => {
@@ -131,6 +139,7 @@ export const materials: Field = {
           type: 'relationship',
           relationTo: 'Suppliers',
           admin: {
+            allowCreate: false,
             condition: (data, siblingData) => !!siblingData.materialsName,
           },
           filterOptions: async ({ req, siblingData }) => {
@@ -236,6 +245,9 @@ export const machine: Field = {
       name: 'machinesProduce',
       label: '',
       type: 'array',
+      admin: {
+        initCollapsed: true,
+      },
       fields: [
         {
           name: 'machinesName',
@@ -243,6 +255,7 @@ export const machine: Field = {
           type: 'relationship',
           relationTo: 'machine',
           admin: {
+            allowCreate: false,
             condition: (data) => !!data.inventory,
           },
           filterOptions: async ({ data, req }) => {
@@ -265,6 +278,7 @@ export const machine: Field = {
           type: 'relationship',
           relationTo: 'Suppliers',
           admin: {
+            allowCreate: false,
             condition: (data, siblingData) => !!siblingData.machinesName,
           },
           filterOptions: async ({ req, siblingData }) => {
@@ -377,6 +391,7 @@ export const report: Field = {
         readOnly: true,
         description: 'Thống kê sản phẩm đã xuất',
         initCollapsed: false,
+        condition: (data) => data.chose === 'sanpham',
       },
       fields: [
         {
@@ -416,7 +431,12 @@ export const report: Field = {
       name: 'reportMaterial',
       label: 'Vật liệu',
       type: 'array',
-      admin: { description: 'Thống kê vật liệu đã nhập', readOnly: true, initCollapsed: false },
+      admin: {
+        description: 'Thống kê vật liệu đã nhập',
+        readOnly: true,
+        initCollapsed: false,
+        condition: (data) => data.chose === 'vatlieuvamaymoc',
+      },
       fields: [
         {
           name: 'reportMaterialName',
@@ -470,7 +490,12 @@ export const report: Field = {
       name: 'reportMachines',
       label: 'Máy móc',
       type: 'array',
-      admin: { description: 'Thống kê máy moc đã nhập', readOnly: true, initCollapsed: false },
+      admin: {
+        description: 'Thống kê máy moc đã nhập',
+        readOnly: true,
+        initCollapsed: false,
+        condition: (data) => data.chose === 'vatlieuvamaymoc',
+      },
       fields: [
         {
           name: 'reportMachinesName',

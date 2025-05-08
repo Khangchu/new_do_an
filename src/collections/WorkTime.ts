@@ -7,6 +7,7 @@ export const WorkTime: CollectionConfig = {
     plural: 'Đăng ký lịch làm',
   },
   admin: {
+    group: 'Quản lý nhân sự',
     useAsTitle: '',
   },
   fields: [

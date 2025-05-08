@@ -3,7 +3,7 @@ import { CollectionConfig } from 'payload'
 export const Tasks: CollectionConfig = {
   slug: 'tasks',
   admin: {
-    group: 'nhan su',
+    group: 'Quản lý nhân sự',
   },
   fields: [
     {

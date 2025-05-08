@@ -6,17 +6,30 @@ import {
   totalValueProduce,
   checkValueSanPham,
   checkInfo,
+  autoVoucherMaker,
+  priceMaterialAndMachine,
+  checkValueMaterialAndMachine,
+  noChangeTypeOrder,
+  canRead,
+  canUpdateCreateDelete,
 } from '@/Hooks/HookOrder'
 import { CollectionConfig } from 'payload'
-
 export const Orders: CollectionConfig = {
   slug: 'orders',
   labels: {
     singular: 'Đơn Hàng',
     plural: 'Đơn Hàng',
   },
+  access: {
+    read: canRead,
+    update: canUpdateCreateDelete,
+    delete: canUpdateCreateDelete,
+    create: canUpdateCreateDelete,
+  },
   admin: {
     useAsTitle: 'orderId',
+    defaultColumns: ['orderId', 'typeOrder', 'voucherMaker', 'dateMake'],
+    group: 'Quản Lý kinh doanh',
   },
   fields: [
     {
@@ -25,6 +38,15 @@ export const Orders: CollectionConfig = {
         {
           label: 'Thông tin phiếu',
           fields: [
+            {
+              name: 'typeOrder',
+              label: 'Loại đơn hàng',
+              type: 'radio',
+              options: [
+                { label: 'Khách hàng', value: 'customer' },
+                { label: 'Công ty', value: 'company' },
+              ],
+            },
             {
               name: 'orderId',
               label: 'ID đơn hàng',
@@ -39,6 +61,10 @@ export const Orders: CollectionConfig = {
               label: 'Người lập phiếu',
               type: 'relationship',
               relationTo: 'users',
+              admin: {
+                readOnly: true,
+                condition: (data) => !!data.voucherMaker,
+              },
             },
             {
               name: 'dateMake',
@@ -56,6 +82,30 @@ export const Orders: CollectionConfig = {
               label: 'Tên khách hàng',
               type: 'relationship',
               relationTo: 'customers',
+              admin: {
+                condition: (data) => {
+                  if (data.typeOrder === 'customer') {
+                    return true
+                  }
+                  return false
+                },
+                allowCreate: false,
+              },
+            },
+            {
+              name: 'suppliers',
+              label: 'Nhà cung cấp',
+              type: 'relationship',
+              relationTo: 'Suppliers',
+              admin: {
+                condition: (data) => {
+                  if (data.typeOrder === 'company') {
+                    return true
+                  }
+                  return false
+                },
+                allowCreate: false,
+              },
             },
 
             {
@@ -83,12 +133,23 @@ export const Orders: CollectionConfig = {
         },
         {
           label: 'Sản phẩm',
+          admin: {
+            condition: (data) => {
+              if (data.typeOrder === 'customer') {
+                return true
+              }
+              return false
+            },
+          },
           fields: [
             {
               name: 'products',
               label: 'Sản phẩm',
               interfaceName: 'CardSlider',
               type: 'array',
+              admin: {
+                initCollapsed: true,
+              },
               fields: [
                 {
                   name: 'productId',
@@ -109,6 +170,9 @@ export const Orders: CollectionConfig = {
                     return {
                       id: { in: productId },
                     }
+                  },
+                  admin: {
+                    allowCreate: false,
                   },
                 },
                 {
@@ -168,6 +232,268 @@ export const Orders: CollectionConfig = {
           ],
         },
         {
+          label: 'Vật liệu',
+          admin: {
+            condition: (data) => {
+              if (data.typeOrder === 'company') {
+                return true
+              }
+              return false
+            },
+          },
+          fields: [
+            {
+              name: 'material',
+              label: 'Vật liệu',
+              interfaceName: 'CardSlider',
+              type: 'array',
+              admin: {
+                initCollapsed: true,
+              },
+              fields: [
+                {
+                  name: 'materialName',
+                  label: 'Vật liệu',
+                  type: 'relationship',
+                  relationTo: 'materials',
+                  filterOptions: async ({ req, data }) => {
+                    if (data.typeOrder === 'company' && data.suppliers) {
+                      const productPrices = await req.payload.find({
+                        collection: 'materialAndMachinePrice',
+                        where: {
+                          chose: { equals: 'material' },
+                        },
+                      })
+                      const productId = productPrices.docs
+                        .filter((dt) => {
+                          return dt?.price?.some((pc) => {
+                            const idSupplier =
+                              typeof pc.supplier === 'object' && pc.supplier !== null
+                                ? pc.supplier.id
+                                : pc.supplier
+                            return idSupplier === data.suppliers
+                          })
+                        })
+                        .map((dt) => {
+                          const productId =
+                            typeof dt.materialName === 'object' && dt.materialName !== null
+                              ? dt.materialName.id
+                              : dt.materialName
+                          return productId
+                        })
+                      return {
+                        id: { in: productId.length !== 0 ? productId : null },
+                      }
+                    }
+                    return false
+                  },
+                  admin: {
+                    allowCreate: false,
+                  },
+                },
+                {
+                  name: 'soluongMaterial',
+                  label: 'Số lượng',
+                  type: 'number',
+                  admin: {
+                    condition: (data, siblingData) => {
+                      return !!siblingData.materialName
+                    },
+                  },
+                  defaultValue: 0,
+                },
+                {
+                  name: 'unitMaterial',
+                  label: 'Đơn vị tính',
+                  type: 'select',
+                  options: [
+                    { label: 'Kilogram (Kg)', value: 'kg' },
+                    { label: 'Gram (g)', value: 'g' },
+                    { label: 'Tấn (T)', value: 't' },
+                    { label: 'Mét (m)', value: 'm' },
+                    { label: 'Cuộn', value: 'cuon' },
+                    { label: 'Lít (L)', value: 'l' },
+                    { label: 'Cái', value: 'cai' },
+                    { label: 'Bộ', value: 'bo' },
+                    { label: 'Thùng', value: 'thung' },
+                    { label: 'Hộp', value: 'hop' },
+                    { label: 'Bao', value: 'bao' },
+                    { label: 'Pallet', value: 'pallet' },
+                  ],
+                  admin: {
+                    condition: (data, siblingData) => {
+                      return !!siblingData.soluongMaterial
+                    },
+                  },
+                },
+                {
+                  name: 'price',
+                  label: 'Giá',
+                  type: 'text',
+                  admin: {
+                    readOnly: true,
+                    condition: (data, siblingData) => !!siblingData.price,
+                  },
+                },
+                {
+                  name: 'totalPrice',
+                  label: 'Tổng giá',
+                  type: 'text',
+                  admin: {
+                    readOnly: true,
+                    condition: (data, siblingData) => !!siblingData.totalPrice,
+                  },
+                },
+                {
+                  name: 'currency',
+                  label: 'Loại tiền tệ',
+                  type: 'select',
+                  options: [
+                    { label: 'VND', value: 'VND' },
+                    { label: 'USD', value: 'USD' },
+                  ],
+                  admin: {
+                    readOnly: true,
+                    condition: (data, siblingData) => !!siblingData.currency,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          label: 'Máy móc',
+          admin: {
+            condition: (data) => {
+              if (data.typeOrder === 'company') {
+                return true
+              }
+              return false
+            },
+          },
+          fields: [
+            {
+              name: 'machine',
+              label: 'Máy móc',
+              interfaceName: 'CardSlider',
+              type: 'array',
+              admin: {
+                initCollapsed: true,
+              },
+              fields: [
+                {
+                  name: 'machineName',
+                  label: 'Máy móc',
+                  type: 'relationship',
+                  relationTo: 'machine',
+                  filterOptions: async ({ req, data }) => {
+                    if (data.typeOrder === 'company' && data.suppliers) {
+                      const productPrices = await req.payload.find({
+                        collection: 'materialAndMachinePrice',
+                        where: {
+                          chose: { equals: 'machine' },
+                        },
+                      })
+                      const productId = productPrices.docs
+                        .filter((dt) => {
+                          return dt?.price?.some((pc) => {
+                            const idSupplier =
+                              typeof pc.supplier === 'object' && pc.supplier !== null
+                                ? pc.supplier.id
+                                : pc.supplier
+                            return idSupplier === data.suppliers
+                          })
+                        })
+                        .map((dt) => {
+                          const productId =
+                            typeof dt.machineName === 'object' && dt.machineName !== null
+                              ? dt.machineName.id
+                              : dt.machineName
+                          return productId
+                        })
+                      return {
+                        id: { in: productId.length !== 0 ? productId : null },
+                      }
+                    }
+                    return false
+                  },
+                  admin: {
+                    allowCreate: false,
+                  },
+                },
+                {
+                  name: 'soluongMachine',
+                  label: 'Số lượng',
+                  type: 'number',
+                  admin: {
+                    condition: (data, siblingData) => {
+                      return !!siblingData.machineName
+                    },
+                  },
+                  defaultValue: 0,
+                },
+                {
+                  name: 'unitMachine',
+                  label: 'Đơn vị tính',
+                  type: 'select',
+                  options: [
+                    { label: 'Cái', value: 'cai' },
+                    { label: 'Bộ', value: 'bo' },
+                    { label: 'Chiếc', value: 'chiec' },
+                    { label: 'Hệ thống', value: 'he-thong' },
+                    { label: 'Máy', value: 'may' },
+                    { label: 'Tấn (T)', value: 't' },
+                    { label: 'Kilogram (Kg)', value: 'kg' },
+                    { label: 'Thùng', value: 'thung' },
+                    { label: 'Hộp', value: 'hop' },
+                    { label: 'Bao', value: 'bao' },
+                    { label: 'Pallet', value: 'pallet' },
+                    { label: 'Lô', value: 'lo' },
+                    { label: 'Cuộn', value: 'cuon' },
+                    { label: 'Mét (m)', value: 'm' },
+                  ],
+                  admin: {
+                    condition: (data, siblingData) => {
+                      return !!siblingData.soluongMachine
+                    },
+                  },
+                },
+                {
+                  name: 'price',
+                  label: 'Giá',
+                  type: 'text',
+                  admin: {
+                    readOnly: true,
+                    condition: (data, siblingData) => !!siblingData.price,
+                  },
+                },
+                {
+                  name: 'totalPrice',
+                  label: 'Tổng giá',
+                  type: 'text',
+                  admin: {
+                    readOnly: true,
+                    condition: (data, siblingData) => !!siblingData.totalPrice,
+                  },
+                },
+                {
+                  name: 'currency',
+                  label: 'Loại tiền tệ',
+                  type: 'select',
+                  options: [
+                    { label: 'VND', value: 'VND' },
+                    { label: 'USD', value: 'USD' },
+                  ],
+                  admin: {
+                    readOnly: true,
+                    condition: (data, siblingData) => !!siblingData.currency,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        {
           label: 'Báo cáo',
           fields: [
             {
@@ -177,6 +503,12 @@ export const Orders: CollectionConfig = {
               admin: {
                 readOnly: true,
                 initCollapsed: true,
+                condition: (data) => {
+                  if (data.typeOrder === 'customer') {
+                    return true
+                  }
+                  return false
+                },
               },
               fields: [
                 {
@@ -184,6 +516,9 @@ export const Orders: CollectionConfig = {
                   label: 'ID Sản Phẩm',
                   type: 'relationship',
                   relationTo: 'products',
+                  admin: {
+                    allowCreate: false,
+                  },
                 },
                 {
                   name: 'report',
@@ -203,6 +538,122 @@ export const Orders: CollectionConfig = {
                         { label: 'Cái', value: 'cai' },
                         { label: 'Bộ', value: 'bo' },
                         { label: 'Đôi', value: 'doi' },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              name: 'materialReport',
+              label: 'Vật liệu',
+              type: 'array',
+              admin: {
+                readOnly: true,
+                initCollapsed: true,
+                condition: (data) => {
+                  if (data.typeOrder === 'company') {
+                    return true
+                  }
+                  return false
+                },
+              },
+              fields: [
+                {
+                  name: 'materialId',
+                  label: 'ID Sản Phẩm',
+                  type: 'relationship',
+                  relationTo: 'materials',
+                  admin: {
+                    allowCreate: false,
+                  },
+                },
+                {
+                  name: 'report',
+                  label: 'Thống kê',
+                  type: 'array',
+                  fields: [
+                    {
+                      name: 'quantity',
+                      label: 'Số lượng',
+                      type: 'number',
+                    },
+                    {
+                      name: 'unti',
+                      label: 'Đơn vị',
+                      type: 'select',
+                      options: [
+                        { label: 'Kilogram (Kg)', value: 'kg' },
+                        { label: 'Gram (g)', value: 'g' },
+                        { label: 'Tấn (T)', value: 't' },
+                        { label: 'Mét (m)', value: 'm' },
+                        { label: 'Cuộn', value: 'cuon' },
+                        { label: 'Lít (L)', value: 'l' },
+                        { label: 'Cái', value: 'cai' },
+                        { label: 'Bộ', value: 'bo' },
+                        { label: 'Thùng', value: 'thung' },
+                        { label: 'Hộp', value: 'hop' },
+                        { label: 'Bao', value: 'bao' },
+                        { label: 'Pallet', value: 'pallet' },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              name: 'machineReport',
+              label: 'Máy móc',
+              type: 'array',
+              admin: {
+                readOnly: true,
+                initCollapsed: true,
+                condition: (data) => {
+                  if (data.typeOrder === 'company') {
+                    return true
+                  }
+                  return false
+                },
+              },
+              fields: [
+                {
+                  name: 'machineId',
+                  label: 'ID Sản Phẩm',
+                  type: 'relationship',
+                  relationTo: 'machine',
+                  admin: {
+                    allowCreate: false,
+                  },
+                },
+                {
+                  name: 'report',
+                  label: 'Thống kê',
+                  type: 'array',
+                  fields: [
+                    {
+                      name: 'quantity',
+                      label: 'Số lượng',
+                      type: 'number',
+                    },
+                    {
+                      name: 'unti',
+                      label: 'Đơn vị',
+                      type: 'select',
+                      options: [
+                        { label: 'Cái', value: 'cai' },
+                        { label: 'Bộ', value: 'bo' },
+                        { label: 'Chiếc', value: 'chiec' },
+                        { label: 'Hệ thống', value: 'he-thong' },
+                        { label: 'Máy', value: 'may' },
+                        { label: 'Tấn (T)', value: 't' },
+                        { label: 'Kilogram (Kg)', value: 'kg' },
+                        { label: 'Thùng', value: 'thung' },
+                        { label: 'Hộp', value: 'hop' },
+                        { label: 'Bao', value: 'bao' },
+                        { label: 'Pallet', value: 'pallet' },
+                        { label: 'Lô', value: 'lo' },
+                        { label: 'Cuộn', value: 'cuon' },
+                        { label: 'Mét (m)', value: 'm' },
                       ],
                     },
                   ],
@@ -266,8 +717,15 @@ export const Orders: CollectionConfig = {
     },
   ],
   hooks: {
-    beforeValidate: [checkInfo, rondomID, checkTime, checkValueSanPham],
-    beforeChange: [priceProduct, updateReport],
+    beforeValidate: [
+      noChangeTypeOrder,
+      checkInfo,
+      rondomID,
+      checkTime,
+      checkValueSanPham,
+      checkValueMaterialAndMachine,
+    ],
+    beforeChange: [autoVoucherMaker, priceProduct, priceMaterialAndMachine, updateReport],
     afterRead: [totalValueProduce],
   },
 }

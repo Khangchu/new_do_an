@@ -3,11 +3,9 @@ import { mongooseAdapter } from '@payloadcms/db-mongodb'
 import { payloadCloudPlugin } from '@payloadcms/payload-cloud'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import path from 'path'
-import { buildConfig, Config } from 'payload'
+import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 import sharp from 'sharp'
-import { multiTenantPlugin } from '@payloadcms/plugin-multi-tenant'
-import { Config as ConfigTypes } from 'payload'
 
 import { Users } from './collections/Users'
 import { Media } from './collections/Media'
@@ -32,8 +30,8 @@ import { customers } from './collections/Customers'
 import { ProductPrices } from './collections/ProductPrices'
 import Transactions from './collections/Transactions'
 import Factories from './collections/Factories'
-import { test } from './collections/test'
-import Tenants from './collections/Tenants'
+import { en } from 'payload/i18n/en'
+import { vi } from 'payload/i18n/vi'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
@@ -43,6 +41,26 @@ export default buildConfig({
     importMap: {
       baseDir: path.resolve(dirname),
     },
+    components: {
+      views: {
+        dashboard: {
+          Component: '/components/Dashboard#Dashboard',
+        },
+      },
+      graphics: {
+        Icon: '/components/Logo#Icon',
+        Logo: '/components/Logo#Logo',
+      },
+      beforeLogin: ['/components/BeforeLogin#BeforeLogin'],
+      Nav: '/components/Nav#Nav',
+    },
+    avatar: {
+      Component: '/components/Avatar#Avatar',
+    },
+    theme: 'dark',
+  },
+  i18n: {
+    supportedLanguages: { vi, en }, // <-- Corrected to use objects matching the expected type
   },
   collections: [
     Users,
@@ -68,9 +86,8 @@ export default buildConfig({
     Transactions,
     Products_Inventory,
     Factories,
-    test,
-    Tenants,
   ],
+
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {

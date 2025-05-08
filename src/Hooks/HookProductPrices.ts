@@ -4,6 +4,7 @@ import {
   CollectionBeforeChangeHook,
   CollectionAfterReadHook,
   APIError,
+  Access,
 } from 'payload'
 
 export const showTitle: CollectionBeforeValidateHook = async ({ data, req }) => {
@@ -16,7 +17,6 @@ export const showTitle: CollectionBeforeValidateHook = async ({ data, req }) => 
     data.title = findProduct.nameProduct
   }
 }
-
 export const formatPrice: CollectionBeforeChangeHook = ({ data }) => {
   const formatNumber = (value: any) => {
     if (value == null || value === '') return '0'
@@ -46,7 +46,6 @@ export const formatPrice: CollectionBeforeChangeHook = ({ data }) => {
     }
   }
 }
-
 export const changeTypePrice: CollectionBeforeChangeHook = ({ data, operation, originalDoc }) => {
   if (operation === 'update') {
     const EXCHANGE_RATE = 25000
@@ -105,7 +104,6 @@ export const changeTypePrice: CollectionBeforeChangeHook = ({ data, operation, o
     }
   }
 }
-
 export const percent: CollectionAfterReadHook = ({ doc }) => {
   const formatNumber = (value: any) => {
     if (value == null || value === '') return '0'
@@ -144,7 +142,6 @@ export const percent: CollectionAfterReadHook = ({ doc }) => {
     }
   }
 }
-
 export const requiredunti: CollectionBeforeValidateHook = ({ data }) => {
   if (!data) return
   const map = new Map()
@@ -166,7 +163,6 @@ export const requiredunti: CollectionBeforeValidateHook = ({ data }) => {
     throw new APIError('Sản Phẩm đã có đơn vị là Đôi', 400)
   }
 }
-
 export const trackPriceHistory: CollectionBeforeChangeHook = ({ data, originalDoc, operation }) => {
   if (!data || !originalDoc) return
   if (operation === 'update') {
@@ -201,7 +197,6 @@ export const trackPriceHistory: CollectionBeforeChangeHook = ({ data, originalDo
     }
   }
 }
-
 export const checkValue: CollectionBeforeValidateHook = ({ data }) => {
   if (!data) return
   const requiredFields = {
@@ -216,4 +211,49 @@ export const checkValue: CollectionBeforeValidateHook = ({ data }) => {
   if (error.length > 0) {
     throw new APIError(`Không được để trống: ${error.join(',')}`, 400)
   }
+}
+export const noEmtyPrice: CollectionBeforeValidateHook = ({ data }) => {
+  if (!data) return
+  const error: string[] = []
+  const errorCount = new Map<string, number>()
+  if (data.price.length > 0) {
+    data.price.forEach((dt: any, index: number) => {
+      const key = dt.id
+      let count = errorCount.get(key) || 0
+      if (!dt.unti || !dt.priceProduct || !dt.priceProduct || !dt.currency || !dt.effectiveDate) {
+        count++
+      }
+      if (dt.tieredPricing.length > 0) {
+        dt.tieredPricing.forEach((pc: any) => {
+          if (!pc.minQuantity || !pc.percent) {
+            count++
+          }
+        })
+      }
+      errorCount.set(key, count)
+      if (count > 0) {
+        const message = `Giá ${index + 1} thiếu thông tin`
+        if (!error.includes(message)) {
+          error.push(message)
+        }
+      }
+    })
+    if (error.length > 0) {
+      throw new APIError(`Lỗi giá: ${error.join(', ')}`, 400)
+    }
+  }
+}
+export const canRead: Access = ({ req }) => {
+  const user = req.user
+  if (!user) return false
+  if (user.role === 'admin' || user.employee?.typeDepartment === 'business') return true
+  return false
+}
+export const canUpdateCreateDelete: Access = ({ req }) => {
+  const user = req.user
+  if (!user) return false
+  if (user.role === 'admin') return true
+  if (user.employee?.typeDepartment === 'business' && user.employee?.position !== 'employees')
+    return true
+  return false
 }

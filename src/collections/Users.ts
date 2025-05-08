@@ -1,56 +1,37 @@
 import { type CollectionConfig } from 'payload'
 import { hero, Skill, WorkTime, employee } from '@/fields/Fields_User'
-import { BeforeValidateUser, CheckValueUsers, BeforeLoginUser } from '@/Hooks/CheckValueUsees'
-
+import {
+  BeforeValidateUser,
+  CheckValueUsers,
+  BeforeLoginUser,
+  checkValueDegree,
+  checkValueCertificate,
+  employeeOut,
+  canReadUser,
+  canUpdateUser,
+} from '@/Hooks/CheckValueUsees'
+import { accessAdmin } from '@/access/accessAll'
 export const Users: CollectionConfig = {
   slug: 'users',
   auth: true,
+  labels: {
+    singular: 'Nhân sự',
+    plural: 'Nhân sự',
+  },
   admin: {
-    useAsTitle: 'title',
-    group: 'nhan su',
+    useAsTitle: 'fullName',
+    defaultColumns: ['fullName', 'userID', 'role', 'status'],
+    group: 'Quản lý nhân sự',
   },
   access: {
-    read: ({ req }) => {
-      if (req.user?.role === 'admin') {
-        return true
-      }
-      return {
-        id: {
-          equals: req.user?.id,
-        },
-      }
-    },
-    update: ({ req }) => {
-      if (req.user?.role === 'admin') {
-        return true
-      }
-      return {
-        id: {
-          equals: req.user?.id,
-        },
-      }
-    },
-
-    delete: ({ req }) => {
-      return req.user?.role === 'admin'
-    },
-    create: () => true,
+    update: canUpdateUser,
+    delete: accessAdmin,
+    create: accessAdmin,
+    read: canReadUser,
   },
   fields: [
-    {
-      name: 'email',
-      label: 'Email',
-      type: 'email',
-    },
     // Email added by default
     // Add more fields as needed
-    {
-      name: 'title',
-      type: 'text',
-      admin: {
-        hidden: true,
-      },
-    },
     {
       type: 'tabs',
       tabs: [
@@ -82,14 +63,13 @@ export const Users: CollectionConfig = {
             },
             {
               name: 'status',
+              label: 'Trạng thái ',
               type: 'select',
               defaultValue: 'pending',
               options: [
-                { label: 'Chờ phê duyệt', value: 'pending' },
-                { label: 'Đã duyệt', value: 'approved' },
-                { label: 'Từ chối', value: 'rejected' },
+                { label: 'Hoạt động', value: 'pending' },
+                { label: 'Khóa tài khoản', value: 'approved' },
               ],
-              required: true,
               admin: {
                 position: 'sidebar',
               },
@@ -110,15 +90,6 @@ export const Users: CollectionConfig = {
               name: 'fullName',
               label: 'Họ và Tên',
               type: 'text',
-              validate: (value: unknown) => {
-                if (!value) {
-                  return 'Không được để trống'
-                }
-                if (typeof value !== 'string') {
-                  return 'Giá trị phải là chuỗi số'
-                }
-                return true
-              },
             },
             {
               name: 'sex',
@@ -134,24 +105,12 @@ export const Users: CollectionConfig = {
                   value: 'Nữ',
                 },
               ],
-              validate: (value: unknown) => {
-                if (!value) {
-                  return 'Không được để trống'
-                }
-                if (typeof value !== 'string') {
-                  return 'Giá trị phải là chuỗi số'
-                }
-                return true
-              },
             },
             {
               name: 'ID',
               label: 'Căn cước công dân',
               type: 'text',
               validate: (value: unknown) => {
-                if (!value) {
-                  return 'Không được để trống'
-                }
                 if (typeof value !== 'string') {
                   return 'Giá trị phải là chuỗi số'
                 }
@@ -173,10 +132,6 @@ export const Users: CollectionConfig = {
                 },
               },
               validate: (value: unknown) => {
-                if (!value) {
-                  return 'Không được để trống'
-                }
-
                 if (typeof value !== 'string') {
                   return 'Giá trị phải là chuỗi ngày tháng'
                 }
@@ -199,30 +154,23 @@ export const Users: CollectionConfig = {
               name: 'address',
               label: 'Địa Chỉ',
               type: 'text',
-              validate: (value: unknown) => {
-                if (!value) {
-                  return 'Không được để trống'
-                }
-                if (typeof value !== 'string') {
-                  return 'Giá trị phải là chuỗi số'
-                }
-                return true
-              },
             },
             {
               name: 'phone',
               label: 'Số Điện Thoại',
               type: 'text',
               validate: (value: unknown) => {
-                if (!value) {
-                  return 'Không được để trống'
-                }
                 if (typeof value !== 'string') {
                   return 'Giá trị phải là chuỗi số'
                 }
                 const regex = /^0\d{9}$/
                 return regex.test(value) ? true : 'Số điện thoại gồm 10 số'
               },
+            },
+            {
+              name: 'Email',
+              label: 'Email',
+              type: 'email',
             },
           ],
           label: 'Thông Tin Cá Nhân',
@@ -247,8 +195,9 @@ export const Users: CollectionConfig = {
     },
   ],
   hooks: {
-    beforeValidate: [BeforeValidateUser],
+    beforeValidate: [BeforeValidateUser, checkValueDegree, checkValueCertificate],
     beforeChange: [CheckValueUsers],
-    beforeLogin: [BeforeLoginUser],
+    // beforeLogin: [BeforeLoginUser],
+    afterChange: [employeeOut],
   },
 }

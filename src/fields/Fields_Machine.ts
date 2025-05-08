@@ -82,20 +82,11 @@ export const maintenance: Field = {
       label: 'Người phụ trách bảo trì',
       type: 'relationship',
       relationTo: 'users',
-      filterOptions: async ({ req }) => {
-        const checkEmployee = await req.payload.find({
-          collection: 'department',
-          where: {
-            id: { equals: '67ac4c7e0b03840aa5beaa7a' },
-          },
-        })
-        const pickEmployee = checkEmployee.docs.flatMap((ep) =>
-          ep.Os_Field?.employees?.map((employee) =>
-            typeof employee === 'object' && 'id' in employee ? employee.id : employee,
-          ),
-        )
+      filterOptions: async ({}) => {
         return {
-          id: { in: pickEmployee },
+          'employee.position': { equals: 'employees' },
+          'employee.typeDepartment': { equals: 'production' },
+          'employee.statusWork': { equals: 'working' },
         }
       },
     },
@@ -127,6 +118,13 @@ export const performance: Field = {
       name: 'incidents',
       label: 'Các sự cố đã gặp',
       type: 'array',
+      labels: {
+        singular: 'sự cố ',
+        plural: 'sự cố ',
+      },
+      admin: {
+        initCollapsed: false,
+      },
       fields: [
         {
           name: 'nameIncidents',
@@ -157,12 +155,6 @@ export const regulation: Field = {
       name: 'safetyRequirements',
       label: 'Yêu cầu an toàn',
       type: 'textarea',
-    },
-    {
-      name: 'employee',
-      label: 'Người được phép vận hành',
-      type: 'relationship',
-      relationTo: 'users',
     },
     {
       name: 'suly',

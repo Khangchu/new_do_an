@@ -1,79 +1,87 @@
-import { CollectionConfig } from "payload";
+import { CollectionConfig } from 'payload'
 
 export const ProductionPlans: CollectionConfig = {
-    slug: 'ProductionPlans',
-    labels: {
-        singular: 'Kế Hoạch Phát Triển Sản Phẩm',
-        plural: 'Kế Hoạch Phát Triển Sản Phẩm',
+  slug: 'ProductionPlans',
+  labels: {
+    singular: 'Kế Hoạch Phát Triển Sản Phẩm',
+    plural: 'Kế Hoạch Phát Triển Sản Phẩm',
+  },
+  admin: {
+    useAsTitle: 'planID',
+    group: 'Quản lý sản xuất',
+    hidden: ({ user }) => {
+      if (!user) return true
+      if (user.role === 'admin' || user.employee?.typeDepartment === 'productDevelopment') {
+        return false
+      }
+      return true
     },
-    admin: {
-        useAsTitle: "planID"
+  },
+  fields: [
+    {
+      name: 'planID',
+      label: 'ID Kế Hoạch',
+      type: 'text',
     },
-    fields: [
+    {
+      name: 'productID',
+      label: 'ID Sản Phẩm',
+      type: 'text',
+    },
+    {
+      name: 'quantity',
+      label: 'Số lượng sản xuất',
+      type: 'number',
+    },
+    {
+      name: 'startDate',
+      label: 'Ngày bắt đầu',
+      type: 'date',
+    },
+    {
+      name: 'endDate',
+      label: 'Ngày kết thúc',
+      type: 'date',
+    },
+    {
+      name: 'status',
+      label: 'Trạng thái',
+      type: 'select',
+      options: [
         {
-            name: 'planID',
-            label: 'ID Kế Hoạch',
-            type : 'text'
+          label: 'đang chờ',
+          value: 'đang chờ',
         },
         {
-            name: 'productID',
-            label: 'ID Sản Phẩm',
-            type : 'text'
+          label: 'đang sản xuất',
+          value: 'đang sản xuất',
         },
         {
-            name: 'quantity',
-            label: 'Số lượng sản xuất',
-            type: 'number'
+          label: 'hoàn thành',
+          value: 'hoàn thành',
+        },
+      ],
+    },
+    {
+      name: 'assignedTo',
+      label: 'ID nhân viên phụ trách',
+      type: 'text',
+    },
+    {
+      label: 'vật liệu sử dụng',
+      type: 'collapsible',
+      fields: [
+        {
+          name: 'materialId',
+          label: 'ID Vật Liệu',
+          type: 'text',
         },
         {
-            name: 'startDate',
-            label: 'Ngày bắt đầu',
-            type: 'date',
+          name: 'materialQuantity',
+          label: 'Số Lượng ',
+          type: 'number',
         },
-        {
-            name: 'endDate',
-            label: 'Ngày kết thúc',
-            type: 'date'
-        },
-        {
-            name: 'status',
-            label: 'Trạng thái',
-            type: 'select',
-            options: [
-                {
-                    label: 'đang chờ',
-                    value :'đang chờ'
-                },
-                {
-                    label: 'đang sản xuất',
-                    value: 'đang sản xuất'
-                },
-                {
-                    label:'hoàn thành',
-                    value: 'hoàn thành'
-                }
-            ]
-        },
-        {
-            name: 'assignedTo',
-            label: 'ID nhân viên phụ trách',
-            type: 'text'
-        },
-        {
-            label: 'vật liệu sử dụng',
-            type: 'collapsible',
-            fields: [
-                {
-                    name: 'materialId',
-                    label: 'ID Vật Liệu',
-                    type: 'text'
-                },
-                {
-                    name: 'materialQuantity',
-                    label: 'Số Lượng ',
-                    type: 'number'
-                }
-            ]
-        },
-    ]
+      ],
+    },
+  ],
 }

@@ -1,10 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { headers } from 'next/headers'
 import {
   CollectionBeforeChangeHook,
   CollectionAfterReadHook,
   CollectionAfterChangeHook,
   APIError,
   CollectionBeforeValidateHook,
+  Access,
 } from 'payload'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -514,10 +516,6 @@ export const setUpdateSoluong: CollectionAfterChangeHook = async ({
                 machineSupplier === pc.suppliersMachines &&
                 dt.unitMachine === pc.unitsMachines,
             )
-            const newProducts = machinesProduce.filter(
-              (pc: any) =>
-                !previousDoc.machine.machinesProduce.some((prev: any) => prev.id === pc.id),
-            )
             const totalSoluong = machinesProduce.reduce(
               (sum: number, value: any) => sum + value.soluongMachines,
               0,
@@ -561,6 +559,8 @@ export const checkValueSoluong: CollectionBeforeValidateHook = async ({
   const inventoryMap = new Map()
   const nameProductMap = new Map()
   const nameMaterialMap = new Map()
+  const error: string[] = []
+  const errorCount = new Map<string, number>()
   if (
     data.chose === 'order' ||
     data.chose === 'chuyenkhosanpham' ||
@@ -594,8 +594,10 @@ export const checkValueSoluong: CollectionBeforeValidateHook = async ({
     })
     if (operation === 'create') {
       await Promise.all(
-        data?.produce.map(async (pc: any) => {
+        data?.produce.map(async (pc: any, index: number) => {
           const key = `${pc.sanpham}-${pc.unti}`
+          const KeyCheckEmty = pc.id
+          let count = errorCount.get(KeyCheckEmty) || 0
           const dt = inventoryMap.get(key)
           const keyName = `${pc.sanpham}`
           const name = nameProductMap.get(keyName)
@@ -625,19 +627,32 @@ export const checkValueSoluong: CollectionBeforeValidateHook = async ({
               }
             }
           }
+          if (!pc.sanpham || !pc.soluong || !pc.unti) {
+            count++
+          }
+          errorCount.set(KeyCheckEmty, count)
+          if (count > 0) {
+            const message = `Sản phẩm ${index + 1}`
+            if (!error.includes(message)) {
+              error.push(message)
+            }
+          }
         }) || [],
       )
-
+      if (error.length > 0) {
+        throw new APIError(`Lỗi thiếu thông tin sản phẩm: ${error.join(', ')}`, 400)
+      }
       if (errorSet.size > 0) {
-        throw new APIError(Array.from(errorSet).join('; '), 400)
+        throw new APIError(`Lỗi Sản phẩm: ${Array.from(errorSet).join('; ')}`, 400)
       }
       return data
     }
     if (operation === 'update') {
       await Promise.all(
-        data?.produce.map(async (pc: any) => {
+        data?.produce.map(async (pc: any, index: number) => {
           const originalDocs = originalDoc?.produce.find((od: any) => od?.id === pc?.id)
-
+          const KeyCheckEmty = pc.id
+          let count = errorCount.get(KeyCheckEmty) || 0
           if (!originalDocs) {
             const key = `${pc.sanpham}-${pc.unti}`
             const dt = inventoryMap.get(key)
@@ -668,7 +683,6 @@ export const checkValueSoluong: CollectionBeforeValidateHook = async ({
                   )
                 }
               }
-              console.log(originalDocs.sanpham)
             }
           } else {
             if (
@@ -676,17 +690,29 @@ export const checkValueSoluong: CollectionBeforeValidateHook = async ({
               originalDocs.soluong !== pc.soluong ||
               originalDocs.unti !== pc.unti
             ) {
-              errorMaterials.add('Không được chỉnh sửa phiểu đã tạo')
+              errorMaterials.add(`Sản phẩm ${index + 1}`)
+            }
+          }
+          if (!pc.sanpham || !pc.soluong || !pc.unti) {
+            count++
+          }
+          errorCount.set(KeyCheckEmty, count)
+          if (count > 0) {
+            const message = `Sản phẩm ${index + 1}`
+            if (!error.includes(message)) {
+              error.push(message)
             }
           }
         }) || [],
       )
-
+      if (error.length > 0) {
+        throw new APIError(`Lỗi thiếu thông tin sản phẩm: ${error.join(', ')}`, 400)
+      }
       if (errorMaterials.size > 0) {
-        throw new APIError(Array.from(errorMaterials).join('; '), 400)
+        throw new APIError(`Lỗi chỉnh sửa sản phẩm: ${Array.from(errorMaterials).join('; ')}`, 400)
       }
       if (errorSet.size > 0) {
-        throw new APIError(Array.from(errorSet).join('; '), 400)
+        throw new APIError(`Lỗi Sản phẩm: ${Array.from(errorSet).join('; ')}`, 400)
       }
       return data
     }
@@ -696,7 +722,21 @@ export const checkValueSoluong: CollectionBeforeValidateHook = async ({
       collection: 'MaterialsAndMachine_Inventory',
       id: data.inventoryM,
     })
-    if (data.materials?.materialsProduce?.length) {
+    if (data.materials?.materialsProduce?.length > 0) {
+      const optionsMaterials = [
+        { label: 'Kilogram (Kg)', value: 'kg' },
+        { label: 'Gram (g)', value: 'g' },
+        { label: 'Tấn (T)', value: 't' },
+        { label: 'Mét (m)', value: 'm' },
+        { label: 'Cuộn', value: 'cuon' },
+        { label: 'Lít (L)', value: 'l' },
+        { label: 'Cái', value: 'cai' },
+        { label: 'Bộ', value: 'bo' },
+        { label: 'Thùng', value: 'thung' },
+        { label: 'Hộp', value: 'hop' },
+        { label: 'Bao', value: 'bao' },
+        { label: 'Pallet', value: 'pallet' },
+      ]
       const getMaterialDetails = (material: any) => {
         const materialId =
           typeof material.materialName === 'object' && material.materialName !== null
@@ -731,34 +771,57 @@ export const checkValueSoluong: CollectionBeforeValidateHook = async ({
         })
       })
       if (operation === 'create') {
-        data.materials?.materialsProduce.map((pc: any) => {
+        data.materials?.materialsProduce.map((pc: any, index: number) => {
           const key = `${pc.materialsName}-${pc.suppliersMaterials}-${pc.unitsMaterials}`
           const keyName = `${pc.materialsName}-${pc.suppliersMaterials}`
+          const KeyCheckEmty = pc.id
+          let count = errorCount.get(KeyCheckEmty) || 0
           const dt = inventoryMap.get(key)
           const name = nameMaterialMap.get(keyName)
+          const label = optionsMaterials.find((u) => u === pc.unitsMaterials)?.label
           if (!dt) {
             if (name) {
               errorSet.add(
-                `Vật liệu ${name.materialName} với nhà cung cấp: ${name.materialSupplierName} không có trong kho`,
+                `Vật liệu ${name.materialName} đơn vị ${label} với nhà cung cấp: ${name.materialSupplierName} không có trong kho`,
               )
             }
           } else {
             dt.soluongMaterial -= pc.soluongMaterials
             if (dt.soluongMaterial < 0) {
               errorSet.add(
-                `Vật liệu ${name.materialName} với nhà cung cấp: ${name.materialSupplierName} không đủ số lượng`,
+                `Vật liệu ${name.materialName} đơn vị ${label} với nhà cung cấp: ${name.materialSupplierName} không đủ số lượng`,
               )
             }
           }
+          if (
+            !pc.unitsMaterials ||
+            !pc.suppliersMaterials ||
+            !pc.materialsName ||
+            !pc.soluongMaterials
+          ) {
+            count++
+          }
+          errorCount.set(KeyCheckEmty, count)
+          if (count > 0) {
+            const message = `Vật liệu ${index + 1}`
+            if (!error.includes(message)) {
+              error.push(message)
+            }
+          }
         })
+        if (error.length > 0) {
+          throw new APIError(`Lỗi thiếu thông tin vật liệu: ${error.join(', ')}`, 400)
+        }
         if (errorSet.size > 0) {
-          throw new APIError(Array.from(errorSet).join(','), 400)
+          throw new APIError(`Lỗi vật liệu: ${Array.from(errorSet).join('; ')}`, 400)
         }
         return data
       }
       if (operation === 'update') {
         const errorMaterials = new Set<string>()
-        data.materials?.materialsProduce.map((pc: any) => {
+        data.materials?.materialsProduce.map((pc: any, index: number) => {
+          const KeyCheckEmty = pc.id
+          let count = errorCount.get(KeyCheckEmty) || 0
           const originalDocs =
             originalDoc.materials?.materialsProduce.find((od: any) => od?.id === pc?.id) || null
           if (!originalDocs || originalDocs === null) {
@@ -766,17 +829,18 @@ export const checkValueSoluong: CollectionBeforeValidateHook = async ({
             const keyName = `${pc.materialsName}-${pc.suppliersMaterials}`
             const dt = inventoryMap.get(key)
             const name = nameMaterialMap.get(keyName)
+            const label = optionsMaterials.find((u) => u === pc.unitsMaterials)?.label
             if (!dt) {
               if (name) {
                 errorSet.add(
-                  `Vật liệu ${name.materialName} với nhà cung cấp ${name.materialSupplierName} không có trong kho`,
+                  `Vật liệu ${name.materialName} đơn vị ${label} với nhà cung cấp ${name.materialSupplierName} không có trong kho`,
                 )
               }
             } else {
               dt.soluongMaterial -= pc.soluongMaterials
               if (dt.soluongMaterial < 0) {
                 errorSet.add(
-                  `Vật liệu ${name.materialName} với nhà cung cấp ${name.materialSupplierName} không đủ số lượng`,
+                  `Vật liệu ${name.materialName} đơn vị ${label} với nhà cung cấp ${name.materialSupplierName} không đủ số lượng`,
                 )
               }
             }
@@ -787,20 +851,57 @@ export const checkValueSoluong: CollectionBeforeValidateHook = async ({
               originalDocs.suppliersMaterials !== pc.suppliersMaterials ||
               originalDocs.unitsMaterials !== pc.unitsMaterials
             ) {
-              errorMaterials.add('Không được chỉnh sửa phiểu đã tạo')
+              errorMaterials.add(`Vật liệu ${index + 1}`)
+            }
+          }
+          if (
+            !pc.unitsMaterials ||
+            !pc.suppliersMaterials ||
+            !pc.materialsName ||
+            !pc.soluongMaterials
+          ) {
+            count++
+          }
+          errorCount.set(KeyCheckEmty, count)
+          if (count > 0) {
+            const message = `Vật liệu ${index + 1}`
+            if (!error.includes(message)) {
+              error.push(message)
             }
           }
         })
+        if (error.length > 0) {
+          throw new APIError(`Lỗi thiếu thông tin vật liệu: ${error.join(', ')}`, 400)
+        }
         if (errorMaterials.size > 0) {
-          throw new APIError(Array.from(errorMaterials).join('; '), 400)
+          throw new APIError(
+            `Lỗi chỉnh sửa vật liệu: ${Array.from(errorMaterials).join('; ')}`,
+            400,
+          )
         }
         if (errorSet.size > 0) {
-          throw new APIError(Array.from(errorSet).join('; '), 400)
+          throw new APIError(`Lỗi vật liệu: ${Array.from(errorSet).join('; ')}`, 400)
         }
         return data
       }
     }
     if (data.machine?.machinesProduce?.length !== 0) {
+      const optionsMachine = [
+        { label: 'Cái', value: 'cai' },
+        { label: 'Bộ', value: 'bo' },
+        { label: 'Chiếc', value: 'chiec' },
+        { label: 'Hệ thống', value: 'he-thong' },
+        { label: 'Máy', value: 'may' },
+        { label: 'Tấn (T)', value: 't' },
+        { label: 'Kilogram (Kg)', value: 'kg' },
+        { label: 'Thùng', value: 'thung' },
+        { label: 'Hộp', value: 'hop' },
+        { label: 'Bao', value: 'bao' },
+        { label: 'Pallet', value: 'pallet' },
+        { label: 'Lô', value: 'lo' },
+        { label: 'Cuộn', value: 'cuon' },
+        { label: 'Mét (m)', value: 'm' },
+      ]
       const getMachineDetails = (machine: any) => {
         const machineId =
           typeof machine.machineName === 'object' && machine.machineName !== null
@@ -834,35 +935,57 @@ export const checkValueSoluong: CollectionBeforeValidateHook = async ({
         })
       })
       if (operation === 'create') {
-        data.machine?.machinesProduce.map((pc: any) => {
+        data.machine?.machinesProduce.map((pc: any, index: number) => {
+          const KeyCheckEmty = pc.id
+          let count = errorCount.get(KeyCheckEmty) || 0
           const key = `${pc.machinesName}-${pc.suppliersMachines}-${pc.unitsMachines}`
           const keyName = `${pc.machinesName}-${pc.suppliersMachines}`
           const dt = inventoryMap.get(key)
           const name = nameMaterialMap.get(keyName)
+          const label = optionsMachine.find((u) => u === pc.unitsMachines)?.label
           if (!dt) {
             if (name) {
               errorSet.add(
-                `Máy móc ${name.machineName} với nhà cung cấp ${name.machineSupplierName} không có trong kho`,
+                `Máy móc ${name.machineName} đơn vị ${label} với nhà cung cấp ${name.machineSupplierName} không có trong kho`,
               )
             }
           } else {
             dt.soluongMachine -= pc.soluongMachines
             if (dt.soluongMachine < 0) {
               errorSet.add(
-                `Máy móc ${name.machineName} với nhà cung cấp ${name.machineSupplierName} không đủ số lượng`,
+                `Máy móc ${name.machineName} đơn vị ${label} với nhà cung cấp ${name.machineSupplierName} không đủ số lượng`,
               )
             }
           }
+          if (
+            !pc.unitsMachines ||
+            !pc.suppliersMachines ||
+            !pc.machinesName ||
+            !pc.soluongMachines
+          ) {
+            count++
+          }
+          errorCount.set(KeyCheckEmty, count)
+          if (count > 0) {
+            const message = `Máy móc ${index + 1}`
+            if (!error.includes(message)) {
+              error.push(message)
+            }
+          }
         })
-
+        if (error.length > 0) {
+          throw new APIError(`Lỗi thiếu thông tin Máy móc: ${error.join(', ')}`, 400)
+        }
         if (errorSet.size > 0) {
-          throw new APIError(Array.from(errorSet).join('; '), 400)
+          throw new APIError(`Lỗi máy móc:${Array.from(errorSet).join('; ')}`, 400)
         }
         return data
       }
       if (operation === 'update') {
         const errorMaterials = new Set<string>()
-        data.machine?.machinesProduce.map((pc: any) => {
+        data.machine?.machinesProduce.map((pc: any, index: number) => {
+          const KeyCheckEmty = pc.id
+          let count = errorCount.get(KeyCheckEmty) || 0
           const originalDocs =
             originalDoc.machine?.machinesProduce.find((od: any) => od?.id === pc?.id) || null
           if (!originalDocs || originalDocs === null) {
@@ -870,17 +993,18 @@ export const checkValueSoluong: CollectionBeforeValidateHook = async ({
             const keyName = `${pc.machinesName}-${pc.suppliersMachines}`
             const dt = inventoryMap.get(key)
             const name = nameMaterialMap.get(keyName)
+            const label = optionsMachine.find((u) => u === pc.unitsMachines)?.label
             if (!dt) {
               if (name) {
                 errorSet.add(
-                  `Máy móc ${name.machineName} với nhà cung cấp ${name.machineSupplierName} không có trong kho`,
+                  `Máy móc ${name.machineName} đơn vị ${label} với nhà cung cấp ${name.machineSupplierName} không có trong kho`,
                 )
               }
             } else {
               dt.soluongMachine -= pc.soluongMachines
               if (dt.soluongMachine < 0) {
                 errorSet.add(
-                  `Máy móc ${name.machineName} với nhà cung cấp ${name.machineSupplierName} không đủ số lượng`,
+                  `Máy móc ${name.machineName} đơn vị ${label} với nhà cung cấp ${name.machineSupplierName} không đủ số lượng`,
                 )
               }
             }
@@ -891,15 +1015,33 @@ export const checkValueSoluong: CollectionBeforeValidateHook = async ({
               originalDocs.suppliersMachines !== pc.suppliersMachines ||
               originalDocs.unitsMachines !== pc.unitsMachines
             ) {
-              errorMaterials.add('Không được chỉnh sửa phiểu đã tạo')
+              errorMaterials.add(`Máy móc ${index + 1}`)
+            }
+          }
+          if (
+            !pc.unitsMachines ||
+            !pc.suppliersMachines ||
+            !pc.machinesName ||
+            !pc.soluongMachines
+          ) {
+            count++
+          }
+          errorCount.set(KeyCheckEmty, count)
+          if (count > 0) {
+            const message = `Máy móc ${index + 1}`
+            if (!error.includes(message)) {
+              error.push(message)
             }
           }
         })
+        if (error.length > 0) {
+          throw new APIError(`Lỗi thiếu thông tin Máy móc: ${error.join(', ')}`, 400)
+        }
         if (errorMaterials.size > 0) {
-          throw new APIError(Array.from(errorMaterials).join('; '), 400)
+          throw new APIError(`Lỗi chỉnh sửa máy móc: ${Array.from(errorMaterials).join('; ')}`, 400)
         }
         if (errorSet.size > 0) {
-          throw new APIError(Array.from(errorSet).join('; '), 400)
+          throw new APIError(`Lỗi máy móc: ${Array.from(errorSet).join('; ')}`, 400)
         }
         return data
       }
@@ -1151,4 +1293,33 @@ export const changeStatus: CollectionAfterChangeHook = async ({ doc, req }) => {
       },
     })
   }
+}
+export const autoEmployee: CollectionBeforeValidateHook = ({ req, data }) => {
+  if (!data) return
+  const user = req.user
+  if (!data.voucherMaker) {
+    if (user?.employee?.typeDepartment === 'warehouse') data.voucherMaker = user?.id
+  }
+}
+export const canRead: Access = async ({ req }) => {
+  const user = req?.user
+  if (!user) return false
+  const referer = (await headers()).get('referer')
+  const isFromMedicalRecodsAdmin = referer?.includes('/admin/collections/orders') || false
+  if (isFromMedicalRecodsAdmin) {
+    return true
+  }
+  if (user.role === 'admin') return true
+  if (user.employee?.typeDepartment === 'warehouse' || user.employee?.typeDepartment === 'business')
+    return true
+  return false
+}
+export const canUpdate: Access = ({ req }) => {
+  const user = req.user
+  if (!user) return false
+  if (user.role === 'admin') return true
+  if (user.employee?.typeDepartment === 'warehouse') {
+    return true
+  }
+  return false
 }

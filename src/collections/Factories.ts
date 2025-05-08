@@ -4,16 +4,29 @@ import {
   showTitle,
   generateFactoryId,
   preventDuplicateProductionAreas,
+  noUndefindArena,
+  noEmptyProductionStats,
+  checkInfo,
+  canRead,
+  canUpdate,
 } from '@/Hooks/HookFactoties'
+import { accessAdmin } from '@/access/accessAll'
 export const Factories: CollectionConfig = {
   slug: 'factories',
   labels: {
     singular: 'Nhà Máy',
     plural: 'Nhà Máy',
   },
+  access: {
+    read: canRead,
+    delete: accessAdmin,
+    create: accessAdmin,
+    update: canUpdate,
+  },
   admin: {
-    useAsTitle: 'title',
-    defaultColumns: ['title', 'id', 'regionFactory', 'managerFactory'],
+    useAsTitle: 'idf',
+    defaultColumns: ['title', 'idf', 'regionFactory', 'managerFactory'],
+    group: 'Quản lý sản xuất',
   },
   fields: [
     {
@@ -68,6 +81,9 @@ export const Factories: CollectionConfig = {
                   name: 'idFactory',
                   label: 'Mã Nhà Máy',
                   type: 'text',
+                  access: {
+                    update: ({ req }) => !!accessAdmin({ req }),
+                  },
                   admin: {
                     readOnly: true,
                     condition: (data) => !!data.idFactory,
@@ -77,16 +93,25 @@ export const Factories: CollectionConfig = {
                   name: 'name',
                   label: 'Tên Nhà Máy',
                   type: 'text',
+                  access: {
+                    update: ({ req }) => !!accessAdmin({ req }),
+                  },
                 },
                 {
                   name: 'location',
                   label: 'Địa Chỉ',
                   type: 'text',
+                  access: {
+                    update: ({ req }) => !!accessAdmin({ req }),
+                  },
                 },
                 {
                   name: 'region',
                   label: 'Khu vực',
                   type: 'select',
+                  access: {
+                    update: ({ req }) => !!accessAdmin({ req }),
+                  },
                   options: [
                     { label: 'Miền Bắc', value: 'north' },
                     { label: 'Miền Trung', value: 'central' },
@@ -99,6 +124,9 @@ export const Factories: CollectionConfig = {
                   type: 'relationship',
                   relationTo: 'department',
                   hasMany: true,
+                  access: {
+                    update: ({ req }) => !!accessAdmin({ req }),
+                  },
                   admin: {
                     allowCreate: false,
                   },
@@ -131,6 +159,10 @@ export const Factories: CollectionConfig = {
                   relationTo: 'users',
                   admin: {
                     allowCreate: false,
+                    allowEdit: true,
+                  },
+                  access: {
+                    update: ({ req }) => !!accessAdmin({ req }),
                   },
                   filterOptions: async ({ data, req }) => {
                     if (!data) return false
@@ -151,7 +183,7 @@ export const Factories: CollectionConfig = {
                       ),
                     ]
                     return {
-                      id: { in: showManager !== undefined ? showManager : [] },
+                      id: { in: showManager !== undefined ? showManager : null },
                     }
                   },
                 },
@@ -159,11 +191,17 @@ export const Factories: CollectionConfig = {
                   name: 'phone',
                   label: 'Số điện thoại',
                   type: 'number',
+                  access: {
+                    update: ({ req }) => !!accessAdmin({ req }),
+                  },
                 },
                 {
                   name: 'email',
                   label: 'Email',
                   type: 'email',
+                  access: {
+                    update: ({ req }) => !!accessAdmin({ req }),
+                  },
                 },
               ],
             },
@@ -172,6 +210,9 @@ export const Factories: CollectionConfig = {
               name: 'workingTime',
               label: 'Thời gian hoạt động',
               type: 'group',
+              access: {
+                update: ({ req }) => !!accessAdmin({ req }),
+              },
               fields: [
                 {
                   name: 'start',
@@ -244,6 +285,7 @@ export const Factories: CollectionConfig = {
                       relationTo: 'users',
                       admin: {
                         allowCreate: false,
+                        allowEdit: false,
                       },
                       filterOptions: async ({ data, req, siblingData }) => {
                         if (!data?.info?.department) return false
@@ -313,6 +355,7 @@ export const Factories: CollectionConfig = {
                       hasMany: true,
                       admin: {
                         allowCreate: false,
+                        allowEdit: false,
                       },
                       filterOptions: async ({ data, req, siblingData }) => {
                         if (!data?.info?.department) return false
@@ -351,23 +394,21 @@ export const Factories: CollectionConfig = {
                             typeof pc === 'object' ? pc?.id : pc,
                           ),
                         )
-
                         const show = employeePool.filter((e) => e && !employeeId.includes(e))
-
-                        if (employee.length < maxWorkers && show.length > 0) {
-                          ID.push(...show.filter((item): item is string => item !== undefined))
+                        if (employee) {
+                          if (employee.length > maxWorkers && show.length > 0) {
+                            return false
+                          }
                         }
-
+                        ID.push(...show.filter((item): item is string => item !== undefined))
                         const orFilters = []
                         if (ID.length > 0) {
                           orFilters.push({ id: { in: ID } })
                         }
-                        if (employee.length > 0) {
+                        if (Array.isArray(employee) && employee.length > 0) {
                           orFilters.push({ id: { in: employee } })
                         }
-
-                        if (orFilters.length === 0) return false // hoặc return undefined
-
+                        if (orFilters.length === 0) return false
                         return {
                           or: orFilters,
                         }
@@ -535,7 +576,14 @@ export const Factories: CollectionConfig = {
     },
   ],
   hooks: {
-    beforeValidate: [showTitle, generateFactoryId, preventDuplicateProductionAreas],
+    beforeValidate: [
+      showTitle,
+      generateFactoryId,
+      preventDuplicateProductionAreas,
+      noUndefindArena,
+      noEmptyProductionStats,
+      checkInfo,
+    ],
   },
 }
 

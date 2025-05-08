@@ -1,6 +1,10 @@
 import { CollectionConfig } from 'payload'
-import { BeforeChange, subEnsureUniqueSlug } from '@/Hooks/HookCategories'
-
+import {
+  BeforeChange,
+  subEnsureUniqueSlug,
+  canReadCategories,
+  canUpdateCreateDeleteCategories,
+} from '@/Hooks/HookCategories'
 export const SubCategories: CollectionConfig = {
   slug: 'subCategories',
   labels: {
@@ -9,8 +13,14 @@ export const SubCategories: CollectionConfig = {
   },
   admin: {
     useAsTitle: 'title',
+    group: 'Quản lý Sản phẩm',
   },
-
+  access: {
+    read: canReadCategories,
+    create: canUpdateCreateDeleteCategories,
+    update: canUpdateCreateDeleteCategories,
+    delete: canUpdateCreateDeleteCategories,
+  },
   fields: [
     {
       name: 'title',

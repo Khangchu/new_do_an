@@ -1,3 +1,4 @@
+import { tree } from 'next/dist/build/templates/app-page'
 import { CollectionConfig } from 'payload'
 
 export const Colors: CollectionConfig = {
@@ -8,6 +9,11 @@ export const Colors: CollectionConfig = {
   },
   admin: {
     useAsTitle: 'name',
+    hidden: ({ user }) => {
+      if (!user) return true
+      if (user?.role === 'admin') return false
+      return true
+    },
   },
   fields: [
     {

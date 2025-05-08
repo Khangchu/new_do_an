@@ -3,6 +3,7 @@ import {
   CollectionBeforeChangeHook,
   CollectionBeforeValidateHook,
   CollectionAfterReadHook,
+  Access,
 } from 'payload'
 import { APIError } from 'payload'
 
@@ -110,4 +111,142 @@ export const changeTypePrice: CollectionBeforeChangeHook = ({ data, originalDoc,
       })
     })
   }
+}
+export const noEmtyPrice: CollectionBeforeValidateHook = ({ data }) => {
+  if (!data) return
+  const error: string[] = []
+  const errorCount = new Map<string, number>()
+  if (data.price.length > 0) {
+    data.price.forEach((dt: any, index: number) => {
+      const key = dt.it
+      let count = errorCount.get(key) || 0
+      if (data.chose === 'material') {
+        if (!dt.supplier || !dt.unitMaterial || !dt.price || !dt.typePrice || !dt.dateUpdate) {
+          count++
+        }
+      }
+      if (data.chose === 'machine') {
+        if (!dt.supplier || !dt.unitMachine || !dt.price || !dt.typePrice || !dt.dateUpdate) {
+          count++
+        }
+      }
+      errorCount.set(key, count)
+      if (count > 0) {
+        const message = `Giá ${index + 1} thiếu thông tin`
+        if (!error.includes(message)) {
+          error.push(message)
+        }
+      }
+    })
+    if (error.length > 0) {
+      throw new APIError(`Lỗi giá: ${error.join(', ')}`, 400)
+    }
+  }
+}
+export const trackPriceHistory: CollectionBeforeChangeHook = ({ data, originalDoc, operation }) => {
+  if (!data || !originalDoc) return
+  if (operation === 'update') {
+    data.priceHistory = [...(originalDoc.priceHistory || [])]
+    const priceHistoryEntry: {
+      changedAt: string
+      type: {
+        unitMaterial: any
+        supplier: any
+        unitMachine: any
+        oldPrice: any
+        newPrice: any
+        oldCurrency: any
+        newCurrency: any
+      }[]
+    } = {
+      changedAt: new Date().toISOString(),
+      type: [],
+    }
+    data.price.forEach((newPriceEntry: any) => {
+      if (data.chose === 'material') {
+        const matchingOldPrice =
+          originalDoc.price.find(
+            (oldPriceEntry: any) =>
+              oldPriceEntry.supplier === newPriceEntry.supplier &&
+              oldPriceEntry.unitMaterial === newPriceEntry.unitMaterial,
+          ) || []
+        if (matchingOldPrice) {
+          if (matchingOldPrice.price === newPriceEntry.price) {
+            return
+          }
+        }
+        priceHistoryEntry.type.push({
+          supplier: newPriceEntry.supplier,
+          unitMaterial: newPriceEntry.unitMaterial,
+          unitMachine: null,
+          oldPrice: matchingOldPrice.price,
+          oldCurrency: matchingOldPrice.typePrice,
+          newPrice: newPriceEntry.price,
+          newCurrency: newPriceEntry.typePrice,
+        })
+        if (priceHistoryEntry.type.length > 0) {
+          data.priceHistory.push(priceHistoryEntry)
+        }
+      }
+      if (data.chose === 'machine') {
+        const matchingOldPrice =
+          originalDoc.price.find(
+            (oldPriceEntry: any) =>
+              oldPriceEntry.supplier === newPriceEntry.supplier &&
+              oldPriceEntry.unitMachine === newPriceEntry.unitMachine,
+          ) || []
+        if (matchingOldPrice) {
+          if (matchingOldPrice.price === newPriceEntry.price) {
+            return
+          }
+        }
+        priceHistoryEntry.type.push({
+          supplier: newPriceEntry.supplier,
+          unitMaterial: null,
+          unitMachine: newPriceEntry.unitMachine,
+          oldPrice: matchingOldPrice.price,
+          oldCurrency: matchingOldPrice.typePrice,
+          newPrice: newPriceEntry.price,
+          newCurrency: newPriceEntry.typePrice,
+        })
+        if (priceHistoryEntry.type.length > 0) {
+          data.priceHistory.push(priceHistoryEntry)
+        }
+      }
+    })
+  }
+}
+export const noEmtyInfo: CollectionBeforeValidateHook = ({ data }) => {
+  if (!data) return
+  const error: string[] = []
+  if (data.chose === 'material') {
+    if (!data.materialName) {
+      error.push('Tên nguyên vật liệu')
+    }
+  }
+  if (data.chose === 'machine') {
+    if (!data.machineName) {
+      error.push('Tên máy móc')
+    }
+  }
+  if (data.price.length > 0) {
+    error.push('Giá')
+  }
+  if (error.length > 0) {
+    throw new APIError(`Không được để trống: ${error.join(', ')}`, 400)
+  }
+}
+export const canRead: Access = ({ req }) => {
+  const user = req.user
+  if (!user) return false
+  if (user.role === 'admin' || user.employee?.typeDepartment === 'business') return true
+  return false
+}
+export const canUpdateCreateDelete: Access = ({ req }) => {
+  const user = req.user
+  if (!user) return false
+  if (user.role === 'admin') return true
+  if (user.employee?.typeDepartment === 'business' && user.employee?.position !== 'employees')
+    return true
+  return false
 }

@@ -1,5 +1,10 @@
 import { CollectionConfig } from 'payload'
-import { BeforeChange, ensureUniqueSlug } from '@/Hooks/HookCategories'
+import {
+  BeforeChange,
+  ensureUniqueSlug,
+  canReadCategories,
+  canUpdateCreateDeleteCategories,
+} from '@/Hooks/HookCategories'
 
 export const Categories: CollectionConfig = {
   slug: 'categories',
@@ -7,23 +12,21 @@ export const Categories: CollectionConfig = {
     singular: 'Danh mục',
     plural: 'Danh mục',
   },
+  access: {
+    read: canReadCategories,
+    create: canUpdateCreateDeleteCategories,
+    update: canUpdateCreateDeleteCategories,
+    delete: canUpdateCreateDeleteCategories,
+  },
   admin: {
     useAsTitle: 'title',
+    group: 'Quản lý Sản phẩm',
   },
   fields: [
     {
       name: 'title',
       label: 'Tên danh mục',
       type: 'text',
-      validate: (value: unknown) => {
-        if (typeof value !== 'string') {
-          return 'phải là 1 chuỗi'
-        }
-        if (!value) {
-          return 'Không được để trống'
-        }
-        return true
-      },
     },
     {
       name: 'slug',

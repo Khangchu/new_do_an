@@ -10,6 +10,9 @@ export const materials: Field = {
       name: 'materialsProduce',
       label: '',
       type: 'array',
+      admin: {
+        initCollapsed: true,
+      },
       fields: [
         {
           name: 'materialsName',
@@ -17,6 +20,7 @@ export const materials: Field = {
           type: 'relationship',
           relationTo: 'materials',
           admin: {
+            allowCreate: false,
             condition: (data) => !!data.inventoryM,
           },
           filterOptions: async ({ data, req }) => {
@@ -37,6 +41,7 @@ export const materials: Field = {
           type: 'relationship',
           relationTo: 'Suppliers',
           admin: {
+            allowCreate: false,
             condition: (data, siblingData) => !!siblingData.materialsName,
           },
           filterOptions: async ({ req, siblingData }) => {
@@ -140,6 +145,9 @@ export const machine: Field = {
       name: 'machinesProduce',
       label: '',
       type: 'array',
+      admin: {
+        initCollapsed: true,
+      },
       fields: [
         {
           name: 'machinesName',
@@ -147,6 +155,7 @@ export const machine: Field = {
           type: 'relationship',
           relationTo: 'machine',
           admin: {
+            allowCreate: false,
             condition: (data) => !!data.inventoryM,
           },
           filterOptions: async ({ data, req }) => {
@@ -167,6 +176,7 @@ export const machine: Field = {
           type: 'relationship',
           relationTo: 'Suppliers',
           admin: {
+            allowCreate: false,
             condition: (data, siblingData) => !!siblingData.machinesName,
           },
           filterOptions: async ({ req, siblingData }) => {

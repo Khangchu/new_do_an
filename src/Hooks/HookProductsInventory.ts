@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { headers } from 'next/headers'
 import {
   CollectionBeforeChangeHook,
   CollectionAfterReadHook,
   CollectionBeforeValidateHook,
   APIError,
+  Access,
 } from 'payload'
-
 export const showPrice: CollectionBeforeChangeHook = async ({
   data,
   req,
@@ -198,8 +199,7 @@ export const checkValue: CollectionBeforeValidateHook = ({ data }) => {
     inventoryName: 'Tên Kho Hàng',
     address: 'Địa chỉ',
     phone: 'Số Điện Thoại',
-    employee: 'Người quản lý',
-    area: 'Diên tích kho',
+    employee: 'Phòng ban quản lý',
   }
 
   const error = Object.entries(requiredFields)
@@ -212,4 +212,62 @@ export const checkValue: CollectionBeforeValidateHook = ({ data }) => {
   if (data.catalogueOfGoods.length === 0) {
     throw new APIError('Không được để trống phần sản phẩm', 400)
   }
+}
+export const noEmtyValue: CollectionBeforeValidateHook = ({ data }) => {
+  if (!data) return
+  const error: string[] = []
+  const errorCount = new Map<string, number>()
+  if (data.catalogueOfGoods.length > 0) {
+    data.catalogueOfGoods.forEach((dt: any, index: number) => {
+      const key = dt.it
+      let count = errorCount.get(key) || 0
+      if (!dt.productId || !dt.danhmuc.amount || !dt.danhmuc.unti) {
+        count++
+      }
+      errorCount.set(key, count)
+      if (count > 0) {
+        const message = `Sản phẩm ${index + 1} thiếu thông tin`
+        if (!error.includes(message)) {
+          error.push(message)
+        }
+      }
+    })
+  }
+  if (error.length > 0) {
+    throw new APIError(`Lỗi sản phẩm: ${error.join(', ')}`, 400)
+  }
+}
+export const canReadProductInventory: Access = async ({ req }) => {
+  const user = req?.user
+  if (!user) return false
+  const referer = (await headers()).get('referer')
+  const isFromMedicalRecodsAdmin = referer?.includes('/admin/collections/products') || false
+  if (isFromMedicalRecodsAdmin) {
+    return true
+  }
+  const isFromMedicalRecodsAdmin1 = referer?.includes('/admin/collections/factories') || false
+  if (isFromMedicalRecodsAdmin1) {
+    return true
+  }
+  if (user.role === 'admin') return true
+  if (user.employee?.typeDepartment === 'warehouse') return true
+  return false
+}
+export const canUpdateProductInventory: Access = ({ req, data }) => {
+  const user = req.user
+  if (!data) return false
+  if (!user) return false
+  if (user.role === 'admin') return true
+  if (user.employee?.typeDepartment === 'warehouse') {
+    if (user?.employee.position !== 'employees') {
+      const idDepartment =
+        typeof user.employee.department === 'object' && user.employee.department !== null
+          ? user.employee.department.id
+          : user.employee.department
+      if (idDepartment === data.employee) {
+        return true
+      }
+    }
+  }
+  return false
 }

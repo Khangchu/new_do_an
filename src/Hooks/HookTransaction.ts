@@ -5,12 +5,22 @@ import {
   CollectionAfterReadHook,
   APIError,
   CollectionAfterChangeHook,
+  Access,
 } from 'payload'
 import { v4 as uuidv4 } from 'uuid'
 export const showTitle: CollectionBeforeValidateHook = ({ data }) => {
   if (!data) return
   if (data.info.transactionId) {
     data.title = data.info.transactionId
+  }
+  if (data.transactionAmount.totalAmount) {
+    data.totalAmountTitle = data.transactionAmount.totalAmount
+  }
+  if (data.info.typeTransaction) {
+    data.typeTransactionTitle = data.info.typeTransaction
+  }
+  if (data.transactionAmount.currency) {
+    data.currencyTitle = data.transactionAmount.currency
   }
 }
 export const romdomId: CollectionBeforeValidateHook = ({ data }) => {
@@ -287,18 +297,26 @@ export const checkTime: CollectionBeforeValidateHook = ({ data, operation, origi
 export const checkValue: CollectionBeforeValidateHook = ({ data }) => {
   if (!data) return
   const requiredFields = {
-    'info.customer': 'Khách hàng',
     'info.dateMake': 'Ngày nhập',
     'transactionAmount.discountValue': 'Giá trị chiết khấu',
     'transactionAmount.shippingValue': 'Giá trị phí vận chuyển',
     'transactionAmount.offerValue': 'Giá trị ưu đãi',
     'payment.transactionDate': 'Ngày Giao Dịch',
+    'info.order': 'Đơn Hàng Liên Quan',
   }
 
   const error = Object.entries(requiredFields)
-    .filter(([key]) => !data[key])
+    .filter(([key]) => {
+      const value = key.split('.').reduce((obj, keyPart) => obj?.[keyPart], data)
+      return value === undefined || value === null || (Array.isArray(value) && value.length === 0)
+    })
     .map(([, label]) => label)
-
+  if (!data.info.customer && data.info.typeTransaction === 'customer') {
+    error.push('Khách hàng')
+  }
+  if (!data.info.suppliers && data.info.typeTransaction === 'company') {
+    error.push('Nhà cung cấp')
+  }
   if (error.length > 0) {
     throw new APIError(`Không được để trống: ${error.join(', ')}`, 400)
   }
@@ -339,7 +357,34 @@ export const changeStatus: CollectionBeforeValidateHook = ({ data }) => {
   }
 }
 export const updateOrder: CollectionAfterChangeHook = async ({ doc, req }) => {
+  if (!doc.info.order) return
+  const find = await req.payload.find({
+    collection: 'transactions',
+    where: {
+      'info.transactionId': { equals: doc.info.transactionId },
+    },
+  })
+  const idTransaction = find.docs[0].id
   for (const orderId of doc.info.order) {
-    console.log(doc)
+    await req.payload.update({
+      collection: 'orders',
+      id: orderId,
+      data: {
+        transactions: idTransaction,
+      },
+    })
   }
+}
+export const autoVoucherMaker: CollectionBeforeChangeHook = ({ data, req }) => {
+  const user = req.user
+  if (!data.info.voucherMaker) {
+    data.info.voucherMaker = user?.id
+  }
+  return data
+}
+export const canUpdateCreateDelete: Access = ({ req }) => {
+  const user = req.user
+  if (!user) return false
+  if (user.role === 'admin' || user.employee?.typeDepartment === 'business') return true
+  return false
 }

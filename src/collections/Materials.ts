@@ -5,7 +5,14 @@ import {
   InlineToolbarFeature,
   lexicalEditor,
 } from '@payloadcms/richtext-lexical'
-import { beforeValidate, beforeChange, changeUniti } from '@/Hooks/HookMaterials'
+import {
+  beforeValidate,
+  beforeChange,
+  changeUniti,
+  checkValueEmty,
+  canReadMaterial,
+  canUpdateCreateDeleteMaterial,
+} from '@/Hooks/HookMaterials'
 
 export const Materials: CollectionConfig = {
   slug: 'materials',
@@ -15,9 +22,14 @@ export const Materials: CollectionConfig = {
   },
   admin: {
     useAsTitle: 'materialsName',
+    defaultColumns: ['materialsID', 'materialsName', 'materialstype', 'supplier'],
+    group: 'Quản lý vật liệu và máy móc',
   },
   access: {
-    read: () => true,
+    read: canReadMaterial,
+    update: canUpdateCreateDeleteMaterial,
+    delete: canUpdateCreateDeleteMaterial,
+    create: canUpdateCreateDeleteMaterial,
   },
   fields: [
     {
@@ -65,31 +77,6 @@ export const Materials: CollectionConfig = {
               label: 'Xuất xứ',
               type: 'text',
             },
-            {
-              type: 'row',
-              fields: [
-                {
-                  name: 'cost',
-                  label: 'giá',
-                  type: 'number',
-                },
-                {
-                  name: 'currency',
-                  label: 'Đơn vị',
-                  type: 'select',
-                  options: [
-                    { label: 'VND', value: 'VND' },
-                    { label: 'USD', value: 'USD' },
-                  ],
-                  defaultValue: 'VND',
-                },
-                {
-                  name: 'previousCurrency',
-                  type: 'text',
-                  admin: { hidden: true },
-                },
-              ],
-            },
           ],
           label: 'Thông tin chung',
         },
@@ -98,6 +85,13 @@ export const Materials: CollectionConfig = {
             {
               name: 'Dimension',
               label: 'Kích thước',
+              labels: {
+                singular: 'Kích thước',
+                plural: 'Kích thước',
+              },
+              admin: {
+                initCollapsed: false,
+              },
               type: 'array',
               fields: [
                 { name: 'Length', label: 'Chiều dài', type: 'text' },
@@ -109,6 +103,13 @@ export const Materials: CollectionConfig = {
               name: 'specificvolume',
               label: 'Khối lượng riêng',
               type: 'array',
+              labels: {
+                singular: 'Khối lượng riêng',
+                plural: 'Khối lượng riêng',
+              },
+              admin: {
+                initCollapsed: false,
+              },
               fields: [
                 {
                   type: 'row',
@@ -141,6 +142,13 @@ export const Materials: CollectionConfig = {
               name: 'tensilestrength',
               label: 'Độ bền kéo',
               type: 'array',
+              labels: {
+                singular: 'Độ bền kéo',
+                plural: 'Độ bền kéo',
+              },
+              admin: {
+                initCollapsed: false,
+              },
               fields: [
                 {
                   type: 'row',
@@ -167,6 +175,13 @@ export const Materials: CollectionConfig = {
               name: 'compressivestrength',
               label: 'Độ bền nén',
               type: 'array',
+              admin: {
+                initCollapsed: false,
+              },
+              labels: {
+                singular: 'Độ bền nén',
+                plural: 'Độ bền nén',
+              },
               fields: [
                 {
                   type: 'row',
@@ -193,6 +208,13 @@ export const Materials: CollectionConfig = {
               name: 'temperaturetolerance',
               label: 'Nhiệt độ chịu đựng',
               type: 'array',
+              admin: {
+                initCollapsed: false,
+              },
+              labels: {
+                singular: 'Nhiệt độ chịu đựng',
+                plural: 'Nhiệt độ chịu đựng',
+              },
               fields: [
                 {
                   type: 'row',
@@ -236,6 +258,13 @@ export const Materials: CollectionConfig = {
             {
               name: 'qualitystandards',
               label: 'Tiêu chuẩn chất lượng',
+              labels: {
+                singular: 'Tiêu chuẩn chất lượng',
+                plural: 'Tiêu chuẩn chất lượng',
+              },
+              admin: {
+                initCollapsed: false,
+              },
               type: 'array',
               fields: [
                 {
@@ -258,8 +287,15 @@ export const Materials: CollectionConfig = {
             },
             {
               name: 'safetycertification',
-              label: 'Tiêu chuẩn chất lượng',
+              label: 'Chứng nhận an toàn',
               type: 'array',
+              admin: {
+                initCollapsed: false,
+              },
+              labels: {
+                singular: 'Chứng nhận an toàn',
+                plural: 'Chứng nhận an toàn',
+              },
               fields: [
                 {
                   name: 'nameCertificate',
@@ -296,13 +332,16 @@ export const Materials: CollectionConfig = {
         },
         {
           fields: [
-            // {
-            //   name: 'tonkho',
-            //   label: 'Tồn Kho',
-            //   type: 'join',
-            //   collection: 'MaterialsAndMachine_Inventory',
-            //   on: 'materialsID',
-            // },
+            {
+              name: 'tonkho',
+              label: 'Tồn Kho',
+              type: 'join',
+              collection: 'MaterialsAndMachine_Inventory',
+              on: 'material.materialName',
+              admin: {
+                allowCreate: false,
+              },
+            },
           ],
           label: 'Kho',
         },
@@ -331,6 +370,6 @@ export const Materials: CollectionConfig = {
   ],
   hooks: {
     beforeChange: [beforeChange, changeUniti],
-    beforeValidate: [beforeValidate],
+    beforeValidate: [beforeValidate, checkValueEmty],
   },
 }

@@ -7,7 +7,12 @@ import {
   checkValue,
   showPrice,
   changeTypePrice,
+  noEmtyValue,
+  updateReport,
+  canReadInventory,
+  canUpdateInventory,
 } from '@/Hooks/HookInventory'
+import { accessAdmin } from '@/access/accessAll'
 export const MaterialsAndMachine_Inventory: CollectionConfig = {
   slug: 'MaterialsAndMachine_Inventory',
   labels: {
@@ -16,6 +21,21 @@ export const MaterialsAndMachine_Inventory: CollectionConfig = {
   },
   admin: {
     useAsTitle: 'inventoryName',
+    group: 'Quản lý Kho hàng',
+    defaultColumns: ['inventoryId', 'inventoryName', 'factories', 'location'],
+    hidden: ({ user }) => {
+      if (!user) return true
+      if (user.role === 'admin' || user.employee?.typeDepartment === 'warehouse') {
+        return false
+      }
+      return true
+    },
+  },
+  access: {
+    read: canReadInventory,
+    update: canUpdateInventory,
+    create: accessAdmin,
+    delete: accessAdmin,
   },
   fields: [
     {
@@ -44,23 +64,43 @@ export const MaterialsAndMachine_Inventory: CollectionConfig = {
               name: 'inventoryName',
               label: 'Tên kho',
               type: 'text',
+              access: {
+                update: ({ req }) => req.user?.role === 'admin',
+              },
             },
             {
               name: 'factories',
               label: 'Nhà máy chực thuộc',
               type: 'relationship',
               relationTo: 'factories',
+              admin: {
+                allowCreate: false,
+              },
+              access: {
+                update: ({ req }) => req.user?.role === 'admin',
+              },
             },
             {
               name: 'location',
               label: 'Địa Chỉ',
               type: 'textarea',
+              access: {
+                update: ({ req }) => req.user?.role === 'admin',
+              },
             },
             {
               name: 'managerInventory',
-              label: 'Người quản lý',
+              label: 'Phòng ban quản lý',
               type: 'relationship',
-              relationTo: 'users',
+              relationTo: 'department',
+              filterOptions: () => {
+                return {
+                  typeDepartment: { equals: 'warehouse' },
+                }
+              },
+              access: {
+                update: ({ req }) => req.user?.role === 'admin',
+              },
             },
             {
               name: 'phoneInventory',
@@ -73,6 +113,9 @@ export const MaterialsAndMachine_Inventory: CollectionConfig = {
                 const regex = /^0\d{9}$/
                 return regex.test(value) ? true : 'Số điện thoại gồm 10 số'
               },
+              access: {
+                update: ({ req }) => req.user?.role === 'admin',
+              },
             },
           ],
         },
@@ -83,12 +126,18 @@ export const MaterialsAndMachine_Inventory: CollectionConfig = {
               type: 'array',
               name: 'material',
               label: 'Vật liệu',
+              admin: {
+                initCollapsed: true,
+              },
               fields: [
                 {
                   name: 'materialName',
                   label: 'Vật liệu',
                   type: 'relationship',
                   relationTo: 'materials',
+                  admin: {
+                    allowCreate: false,
+                  },
                 },
                 {
                   name: 'suppliersMaterial',
@@ -119,6 +168,7 @@ export const MaterialsAndMachine_Inventory: CollectionConfig = {
                     condition: (data, siblingData) => {
                       return !!siblingData.materialName
                     },
+                    allowCreate: false,
                   },
                 },
                 {
@@ -126,7 +176,6 @@ export const MaterialsAndMachine_Inventory: CollectionConfig = {
                   label: 'Số lượng',
                   type: 'number',
                   admin: {
-                    readOnly: true,
                     condition: (data, siblingData) => {
                       return !!siblingData.materialName
                     },
@@ -207,13 +256,19 @@ export const MaterialsAndMachine_Inventory: CollectionConfig = {
             {
               type: 'array',
               name: 'machine',
-              label: '',
+              label: 'Máy móc',
+              admin: {
+                initCollapsed: true,
+              },
               fields: [
                 {
                   name: 'machineName',
                   label: 'Máy móc',
                   type: 'relationship',
                   relationTo: 'machine',
+                  admin: {
+                    allowCreate: false,
+                  },
                 },
                 {
                   name: 'suppliersMachine',
@@ -244,6 +299,7 @@ export const MaterialsAndMachine_Inventory: CollectionConfig = {
                     condition: (data, siblingData) => {
                       return !!siblingData.machineName
                     },
+                    allowCreate: false,
                   },
                 },
                 {
@@ -328,17 +384,172 @@ export const MaterialsAndMachine_Inventory: CollectionConfig = {
           ],
         },
         {
+          label: 'Báo cáo',
+          fields: [
+            {
+              name: 'reportMaterial',
+              label: 'Vật liệu',
+              type: 'array',
+              admin: {
+                description: 'Thống kê vật liệu đã nhập',
+                readOnly: true,
+                initCollapsed: true,
+              },
+              fields: [
+                {
+                  name: 'reportMaterialName',
+                  label: 'Tên vật liệu',
+                  type: 'relationship',
+                  relationTo: 'materials',
+                  admin: {
+                    readOnly: true,
+                  },
+                },
+                {
+                  name: 'report',
+                  label: 'Thống kê',
+                  type: 'array',
+                  fields: [
+                    {
+                      name: 'reportMaterialSoLuong',
+                      label: 'Số lượng',
+                      type: 'number',
+                      admin: {
+                        readOnly: true,
+                      },
+                    },
+                    {
+                      name: 'reportMaterialUnits',
+                      label: 'Đơn vị tính',
+                      type: 'select',
+                      options: [
+                        { label: 'Kilogram (Kg)', value: 'kg' },
+                        { label: 'Gram (g)', value: 'g' },
+                        { label: 'Tấn (T)', value: 't' },
+                        { label: 'Mét (m)', value: 'm' },
+                        { label: 'Cuộn', value: 'cuon' },
+                        { label: 'Lít (L)', value: 'l' },
+                        { label: 'Cái', value: 'cai' },
+                        { label: 'Bộ', value: 'bo' },
+                        { label: 'Thùng', value: 'thung' },
+                        { label: 'Hộp', value: 'hop' },
+                        { label: 'Bao', value: 'bao' },
+                        { label: 'Pallet', value: 'pallet' },
+                      ],
+                      admin: {
+                        readOnly: true,
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              name: 'reportMachines',
+              label: 'Máy móc',
+              type: 'array',
+              admin: {
+                description: 'Thống kê máy moc đã nhập',
+                readOnly: true,
+                initCollapsed: true,
+              },
+              fields: [
+                {
+                  name: 'reportMachinesName',
+                  label: 'Tên máy móc',
+                  type: 'relationship',
+                  relationTo: 'machine',
+                  admin: {
+                    readOnly: true,
+                  },
+                },
+                {
+                  name: 'report',
+                  label: 'Thống kê',
+                  type: 'array',
+                  fields: [
+                    {
+                      name: 'reportMachinesSoLuong',
+                      label: 'Số lượng',
+                      type: 'number',
+                      admin: {
+                        readOnly: true,
+                      },
+                    },
+                    {
+                      name: 'reportMachinesUnits',
+                      label: 'Đơn vị tính',
+                      type: 'select',
+                      options: [
+                        { label: 'Cái', value: 'cai' },
+                        { label: 'Bộ', value: 'bo' },
+                        { label: 'Chiếc', value: 'chiec' },
+                        { label: 'Hệ thống', value: 'he-thong' },
+                        { label: 'Máy', value: 'may' },
+                        { label: 'Tấn (T)', value: 't' },
+                        { label: 'Kilogram (Kg)', value: 'kg' },
+                        { label: 'Thùng', value: 'thung' },
+                        { label: 'Hộp', value: 'hop' },
+                        { label: 'Bao', value: 'bao' },
+                        { label: 'Pallet', value: 'pallet' },
+                        { label: 'Lô', value: 'lo' },
+                        { label: 'Cuộn', value: 'cuon' },
+                        { label: 'Mét (m)', value: 'm' },
+                      ],
+                      admin: {
+                        readOnly: true,
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              label: 'Tổng giá trị nhập kho',
+              type: 'collapsible',
+              fields: [
+                {
+                  name: 'totalValue',
+                  label: 'Tổng tiền',
+                  type: 'text',
+                  admin: { readOnly: true },
+                },
+                {
+                  name: 'rateValue',
+                  label: 'Loại Tiền',
+                  type: 'select',
+                  options: [
+                    { value: 'VND', label: 'VND' },
+                    { value: 'USD', label: 'USD' },
+                  ],
+                  defaultValue: 'VND',
+                },
+              ],
+            },
+          ],
+        },
+        {
           label: 'Lịch sư xuất nhập kho',
           fields: [
             {
               name: 'goodsDeliveryNote',
               label: 'Lịch sử xuất kho',
-              type: 'text',
+              type: 'join',
+              collection: 'goodsDeliveryNote',
+              on: 'inventoryM',
+              admin: {
+                allowCreate: false,
+              },
             },
             {
               name: 'goodsReceivedNote',
               label: 'Lịch sử nhập kho',
-              type: 'text',
+              type: 'join',
+              collection: 'goodsReceiveNote',
+              on: 'inventory',
+              admin: {
+                allowCreate: false,
+              },
             },
           ],
         },
@@ -346,8 +557,8 @@ export const MaterialsAndMachine_Inventory: CollectionConfig = {
     },
   ],
   hooks: {
-    beforeValidate: [checkValue, rondomID, showTitle],
-    beforeChange: [showPrice, changeTypePrice],
+    beforeValidate: [checkValue, rondomID, showTitle, noEmtyValue],
+    beforeChange: [showPrice, changeTypePrice, updateReport],
     afterRead: [totalPrice],
   },
 }

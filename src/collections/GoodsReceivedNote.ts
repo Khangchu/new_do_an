@@ -10,6 +10,9 @@ import {
   checkSoluong,
   checkTime,
   checkInfo,
+  autoEmployee,
+  canRead,
+  canUpdate,
 } from '@/Hooks/HookGoodsReceivedNote'
 import { materials, machine, report, produce } from '@/fields/Fields_GoodsReceiveNote'
 export const goodsReceivedNote: CollectionConfig = {
@@ -20,6 +23,14 @@ export const goodsReceivedNote: CollectionConfig = {
   },
   admin: {
     useAsTitle: 'title',
+    group: 'Quản lý Kho hàng',
+    defaultColumns: ['goodsReceivedNoteId', 'chose', 'date', 'voucherMaker'],
+  },
+  access: {
+    read: canRead,
+    delete: canUpdate,
+    create: canUpdate,
+    update: canUpdate,
   },
   fields: [
     {
@@ -62,12 +73,60 @@ export const goodsReceivedNote: CollectionConfig = {
                 allowCreate: false,
                 condition: (data) => data.chose === 'vatlieuvamaymoc',
               },
+              filterOptions: async ({ data, req }) => {
+                const user = req.user
+                const idDepartment =
+                  typeof user?.employee?.department === 'object' &&
+                  user?.employee?.department !== null
+                    ? user?.employee?.department.id
+                    : user?.employee?.department
+                if (!data) return false
+                if (!user) return false
+                const find = await req.payload.find({
+                  collection: 'MaterialsAndMachine_Inventory',
+                  where: {
+                    managerInventory: { equals: idDepartment },
+                  },
+                })
+                return {
+                  id: {
+                    in:
+                      find.docs.map((dt) => dt.id).length !== 0
+                        ? find.docs.map((dt) => dt.id)
+                        : null,
+                  },
+                }
+              },
             },
             {
               name: 'inventoryProduce',
               label: 'Kho hàng',
               type: 'relationship',
               relationTo: 'Products_Inventory',
+              filterOptions: async ({ req, data }) => {
+                const user = req.user
+                const idDepartment =
+                  typeof user?.employee?.department === 'object' &&
+                  user?.employee?.department !== null
+                    ? user?.employee?.department.id
+                    : user?.employee?.department
+                if (!user) return false
+                if (!data) return false
+                const find = await req.payload.find({
+                  collection: 'Products_Inventory',
+                  where: {
+                    employee: { equals: idDepartment },
+                  },
+                })
+                return {
+                  id: {
+                    in:
+                      find.docs.map((dt) => dt.id).length !== 0
+                        ? find.docs.map((dt) => dt.id)
+                        : null,
+                  },
+                }
+              },
               admin: {
                 allowCreate: false,
                 condition: (data) => data.chose === 'sanpham',
@@ -90,29 +149,36 @@ export const goodsReceivedNote: CollectionConfig = {
               type: 'text',
             },
             {
-              name: 'employee',
-              label: 'Người nhận hàng',
-              type: 'relationship',
-              relationTo: 'users',
-            },
-            {
               name: 'voucherMaker',
               label: 'Người lập phiếu',
               type: 'relationship',
               relationTo: 'users',
+              admin: {
+                condition: (data) => !!data.voucherMaker,
+                readOnly: true,
+              },
             },
           ],
         },
         {
           label: 'Sản phẩm',
+          admin: {
+            condition: (data) => data.chose === 'sanpham',
+          },
           fields: [produce],
         },
         {
           label: 'Vật liệu',
+          admin: {
+            condition: (data) => data.chose === 'vatlieuvamaymoc',
+          },
           fields: [materials],
         },
         {
           label: 'Máy móc',
+          admin: {
+            condition: (data) => data.chose === 'vatlieuvamaymoc',
+          },
           fields: [machine],
         },
         {
@@ -123,7 +189,7 @@ export const goodsReceivedNote: CollectionConfig = {
     },
   ],
   hooks: {
-    beforeValidate: [rondomID, showTitle, checkInfo, checkTime, checkSoluong],
+    beforeValidate: [rondomID, showTitle, checkInfo, checkTime, checkSoluong, autoEmployee],
     afterRead: [totalPrice, showReport, reportTotalPrice],
     beforeChange: [showPrice],
     afterChange: [setUpdateSoluong],

@@ -1,4 +1,4 @@
-import { APIError, CollectionBeforeChangeHook } from 'payload'
+import { Access, APIError, CollectionBeforeChangeHook } from 'payload'
 import slugify from 'slugify'
 
 export const BeforeChange: CollectionBeforeChangeHook = ({ data }) => {
@@ -8,6 +8,9 @@ export const BeforeChange: CollectionBeforeChangeHook = ({ data }) => {
   if (!data.title) {
     error.push('Tên danh mục')
   }
+  if (!data.image) {
+    error.push('Hình ảnh danh mục')
+  }
   const throwError = error.map((err) => err).join(',')
   if (error.length > 0) {
     throw new APIError(`Không được để trống:${throwError}`, 400)
@@ -15,7 +18,7 @@ export const BeforeChange: CollectionBeforeChangeHook = ({ data }) => {
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const ensureUniqueSlug = async ({ data, req, operation }: any) => {
-  if (!data.slug && data.title) {
+  if (data.title) {
     data.slug = slugify(data.title, { lower: true, strict: true })
   }
 
@@ -32,7 +35,7 @@ export const ensureUniqueSlug = async ({ data, req, operation }: any) => {
   return data
 }
 export const subEnsureUniqueSlug: CollectionBeforeChangeHook = async ({ data, req, operation }) => {
-  if (!data.slug && data.title) {
+  if (data.title) {
     data.slug = slugify(data.title, { lower: true, strict: true })
   }
   if (operation === 'create') {
@@ -44,4 +47,34 @@ export const subEnsureUniqueSlug: CollectionBeforeChangeHook = async ({ data, re
       throw new APIError('Slug đã tồn tại, vui lòng chọn slug khác.', 400)
     }
   }
+}
+export const canReadCategories: Access = ({ req }) => {
+  const user = req.user
+  if (!user) return false
+  if (user.role === 'admin') return true
+  if (
+    user.employee?.typeDepartment === 'productDevelopment' ||
+    user.employee?.typeDepartment === 'business' ||
+    user.employee?.typeDepartment === 'warehouse'
+  ) {
+    if (user.employee.department || (user.employee.regionalManagement?.docs?.length ?? 0) > 0) {
+      return true
+    } else {
+      return false
+    }
+  }
+  return false
+}
+export const canUpdateCreateDeleteCategories: Access = ({ req }) => {
+  const user = req.user
+  if (!user) return false
+  if (user.role === 'admin') return true
+  if (user.employee?.typeDepartment === 'productDevelopment') {
+    if (user.employee.department || (user.employee.regionalManagement?.docs?.length ?? 0) > 0) {
+      return true
+    } else {
+      return false
+    }
+  }
+  return false
 }

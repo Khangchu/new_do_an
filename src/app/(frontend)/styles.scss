@@ -1,3 +1,4 @@
+@import '~@payloadcms/ui/scss';
 :root {
   --font-mono: 'Roboto Mono', monospace;
 }
@@ -159,6 +160,29 @@ svg {
       padding: 0 0.5rem;
       background: rgb(60, 60, 60);
       border-radius: 4px;
+    }
+  }
+}
+@layer payload-default {
+  .before-login {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    border-right: none;
+
+    &__image-wrap {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    @include mid-break {
+      &__image-wrap {
+        opacity: 0.75;
+      }
     }
   }
 }

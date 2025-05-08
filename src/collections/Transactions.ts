@@ -9,6 +9,9 @@ import {
   checkTime,
   checkValue,
   changeStatus,
+  autoVoucherMaker,
+  updateOrder,
+  canUpdateCreateDelete,
 } from '@/Hooks/HookTransaction'
 export const Transactions: CollectionConfig = {
   slug: 'transactions',
@@ -18,14 +21,57 @@ export const Transactions: CollectionConfig = {
   },
   admin: {
     useAsTitle: 'title',
+    defaultColumns: ['title', 'typeTransactionTitle', 'totalAmountTitle', 'totalAmountTitle'],
+    group: 'Quản Lý kinh doanh',
+    hidden: ({ user }) => {
+      if (user?.role === 'admin' || user?.employee?.typeDepartment === 'business') {
+        return false
+      }
+      return true
+    },
+  },
+  access: {
+    update: canUpdateCreateDelete,
+    delete: canUpdateCreateDelete,
+    create: canUpdateCreateDelete,
   },
   fields: [
     {
       name: 'title',
+      label: 'Mã Giao Dịch',
       type: 'text',
       admin: {
         hidden: true,
       },
+    },
+    {
+      name: 'typeTransactionTitle',
+      label: 'Loại giao dịch',
+      type: 'radio',
+      options: [
+        { label: 'Khách hàng', value: 'customer' },
+        { label: 'Công ty', value: 'company' },
+      ],
+      admin: {
+        hidden: true,
+      },
+    },
+    {
+      name: 'totalAmountTitle',
+      label: 'Tổng tiền thanh toán',
+      type: 'text',
+      admin: { hidden: true },
+    },
+    {
+      name: 'currencyTitle',
+      label: 'Loại Tiền',
+      type: 'select',
+      options: [
+        { label: 'VND', value: 'VND' },
+        { label: 'USD', value: 'USD' },
+      ],
+      defaultValue: 'VND',
+      admin: { hidden: true },
     },
     {
       name: 'info',
@@ -33,11 +79,30 @@ export const Transactions: CollectionConfig = {
       type: 'group',
       fields: [
         {
+          name: 'typeTransaction',
+          label: 'Loại giao dịch',
+          type: 'radio',
+          options: [
+            { label: 'Khách hàng', value: 'customer' },
+            { label: 'Công ty', value: 'company' },
+          ],
+        },
+        {
           name: 'transactionId',
           label: 'Mã Giao Dịch',
           type: 'text',
           admin: {
             condition: (data) => !!data.info.transactionId,
+            readOnly: true,
+          },
+        },
+        {
+          name: 'voucherMaker',
+          label: 'Người lập phiếu',
+          type: 'relationship',
+          relationTo: 'users',
+          admin: {
+            condition: (data) => !!data.info.voucherMaker,
             readOnly: true,
           },
         },
@@ -52,22 +117,38 @@ export const Transactions: CollectionConfig = {
           },
           filterOptions: async ({ data, req }) => {
             if (!data) return false
-            console.log('data', data?.info?.customer)
-            if (data?.info?.customer) {
+
+            if (data?.info?.customer && data?.info?.typeTransaction === 'customer') {
               const find = await req.payload.findByID({
                 collection: 'customers',
                 id: data.info.customer,
               })
               const findOrder = find.ordersAndDeal?.orders?.orderId?.docs
                 ?.filter((item) =>
-                  typeof item === 'object' && item !== null
-                    ? item.transactions !== undefined
-                    : item,
+                  typeof item === 'object' && item !== null ? item.transactions !== null : item,
                 )
                 .map((item) => (typeof item === 'object' && item !== null ? item.id : item))
               return {
                 id: {
-                  not_in: findOrder !== undefined ? findOrder : null,
+                  in: findOrder !== undefined ? findOrder : null,
+                },
+              }
+            }
+            if (data?.info?.suppliers && data?.info?.typeTransaction === 'company') {
+              const find = await req.payload.findByID({
+                collection: 'Suppliers',
+                id: data.info.suppliers,
+              })
+              const findOrder = find.order?.docs
+                ?.filter((item) => {
+                  return typeof item === 'object' && item !== null
+                    ? item.transactions !== null
+                    : item
+                })
+                .map((item) => (typeof item === 'object' && item !== null ? item.id : item))
+              return {
+                id: {
+                  in: findOrder?.length !== 0 ? findOrder : null,
                 },
               }
             }
@@ -80,6 +161,27 @@ export const Transactions: CollectionConfig = {
           type: 'relationship',
           relationTo: 'customers',
           admin: {
+            allowCreate: false,
+            condition: (data) => {
+              if (data?.info?.typeTransaction === 'customer') {
+                return true
+              }
+              return false
+            },
+          },
+        },
+        {
+          name: 'suppliers',
+          label: 'Nhà cung cấp',
+          type: 'relationship',
+          relationTo: 'Suppliers',
+          admin: {
+            condition: (data) => {
+              if (data?.info?.typeTransaction === 'company') {
+                return true
+              }
+              return false
+            },
             allowCreate: false,
           },
         },
@@ -287,10 +389,10 @@ export const Transactions: CollectionConfig = {
     },
   ],
   hooks: {
-    beforeValidate: [romdomId, showTitle, checkTime, changeStatus],
-    beforeChange: [showPrice, formatPrice, changePrice],
+    beforeValidate: [romdomId, showTitle, checkValue, checkTime, changeStatus],
+    beforeChange: [autoVoucherMaker, showPrice, formatPrice, changePrice],
     afterRead: [totalPrice],
+    afterChange: [updateOrder],
   },
 }
-
 export default Transactions

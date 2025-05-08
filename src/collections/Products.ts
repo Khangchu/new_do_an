@@ -1,14 +1,39 @@
 import type { CollectionConfig } from 'payload'
-import { checkValue, rondomID } from '@/Hooks/HookProducts'
+import {
+  checkValue,
+  rondomID,
+  canReadProducts,
+  canUpdateCreateDeleteProducts,
+} from '@/Hooks/HookProducts'
 
 export const Products: CollectionConfig = {
   slug: 'products',
   admin: {
     useAsTitle: 'nameProduct',
+    defaultColumns: ['productID', 'nameProduct', 'category', 'origin'],
+    group: 'Quản lý Sản phẩm',
+    hidden: ({ user }) => {
+      if (!user) return true
+      if (
+        user?.employee?.typeDepartment === 'business' ||
+        user?.employee?.typeDepartment === 'productDevelopment' ||
+        user?.employee?.typeDepartment === 'warehouse'
+      ) {
+        return false
+      }
+      if (user.role === 'admin') return false
+      return true
+    },
   },
   labels: {
     singular: 'Sản Phẩm',
     plural: 'Sản Phẩm',
+  },
+  access: {
+    read: canReadProducts,
+    update: canUpdateCreateDeleteProducts,
+    delete: canUpdateCreateDeleteProducts,
+    create: canUpdateCreateDeleteProducts,
   },
   fields: [
     {

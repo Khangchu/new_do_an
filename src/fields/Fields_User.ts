@@ -1,5 +1,10 @@
 import type { Field } from 'payload'
-
+import {
+  FixedToolbarFeature,
+  HeadingFeature,
+  InlineToolbarFeature,
+  lexicalEditor,
+} from '@payloadcms/richtext-lexical'
 export const hero: Field = {
   name: 'hocvan',
   label: '',
@@ -7,49 +12,43 @@ export const hero: Field = {
   fields: [
     {
       name: 'degree',
-      type: 'text',
       label: 'Bằng Cấp',
-      validate: (value: unknown) => {
-        if (!value) {
-          return 'Không được để trống'
-        }
-        if (typeof value !== 'string') {
-          return 'Giá trị phải là chuỗi số'
-        }
-        return true
+      labels: {
+        plural: 'Bằng Cấp',
+        singular: 'Bằng Cấp',
       },
-    },
-    {
-      name: 'university',
-      type: 'text',
-      label: 'Đại Học',
-      validate: (value: unknown) => {
-        if (!value) {
-          return 'Không được để trống'
-        }
-        if (typeof value !== 'string') {
-          return 'Giá trị phải là chuỗi số'
-        }
-        return true
-      },
-    },
-    {
-      name: 'specialization',
-      type: 'text',
-      label: 'Chuyên Ngành',
-      validate: (value: unknown) => {
-        if (!value) {
-          return 'Không được để trống'
-        }
-        if (typeof value !== 'string') {
-          return 'Giá trị phải là chuỗi số'
-        }
-        return true
-      },
+      type: 'array',
+      fields: [
+        {
+          name: 'Namedegree',
+          type: 'text',
+          label: 'Tên Bằng Cấp',
+        },
+        {
+          name: 'university',
+          type: 'text',
+          label: 'Đại Học',
+        },
+        {
+          name: 'specialization',
+          type: 'text',
+          label: 'Chuyên Ngành',
+        },
+        {
+          name: 'img',
+          label: 'Minh chứng',
+          type: 'upload',
+          relationTo: 'media',
+        },
+      ],
     },
     {
       name: 'Certificate',
       label: 'Chứng chỉ',
+      labels: {
+        singular: 'Chứng chỉ',
+        plural: 'Chứng chỉ',
+      },
       type: 'array',
       fields: [
         {
@@ -82,6 +81,16 @@ export const employee: Field = {
       label: 'Vị trí công việc',
       type: 'select',
       defaultValue: 'employees',
+      access: {
+        update: ({ req }) => {
+          const user = req.user
+          if (!user) return false
+          if (user.role === 'admin') {
+            return true
+          }
+          return false
+        },
+      },
       options: [
         {
           label: 'Trưởng Phòng',
@@ -105,6 +114,16 @@ export const employee: Field = {
       name: 'typeDepartment',
       label: 'Loại phòng ban',
       type: 'select',
+      access: {
+        update: ({ req }) => {
+          const user = req.user
+          if (!user) return false
+          if (user.role === 'admin') {
+            return true
+          }
+          return false
+        },
+      },
       options: [
         { label: 'Sản xuất', value: 'production' },
         { label: 'Kinh doanh', value: 'business' },
@@ -133,10 +152,26 @@ export const employee: Field = {
     {
       name: 'regionalManagement',
       label: 'phòng ban quản lý',
-      type: 'text',
+      type: 'join',
+      collection: 'department',
+      on: 'manager',
       admin: {
         condition: (data) => {
           return data.employee?.position === 'director' ? true : false
+        },
+        allowCreate: false,
+      },
+      access: {
+        read: ({ req }) => {
+          const user = req.user
+          if (!user) return false
+          if (user.role === 'admin') {
+            return true
+          }
+          if (user.employee?.position === 'director') {
+            return true
+          }
+          return false
         },
       },
     },
@@ -144,6 +179,30 @@ export const employee: Field = {
       name: 'salary',
       label: 'Lương',
       type: 'number',
+      access: {
+        update: ({ req }) => {
+          const user = req.user
+          if (!user) return false
+          if (user.role === 'admin') {
+            return true
+          }
+          return false
+        },
+      },
+    },
+    {
+      name: 'statusWork',
+      label: 'Tình trạng làm việc',
+      type: 'select',
+      options: [
+        { label: 'Đang làm', value: 'working' },
+        { label: 'Nghỉ việc', value: 'out' },
+      ],
+      defaultValue: 'working',
+      access: {
+        read: () => true,
+        update: ({ req: { user } }) => user?.role === 'admin',
+      },
     },
     {
       name: 'assignedTasks',
@@ -157,7 +216,23 @@ export const Skill: Field = {
   name: 'Skill',
   label: '',
   type: 'group',
-  fields: [],
+  fields: [
+    {
+      name: 'note',
+      label: '',
+      type: 'richText',
+      editor: lexicalEditor({
+        features: ({ rootFeatures }) => {
+          return [
+            ...rootFeatures,
+            HeadingFeature({ enabledHeadingSizes: ['h1', 'h2', 'h3', 'h4'] }),
+            FixedToolbarFeature(),
+            InlineToolbarFeature(),
+          ]
+        },
+      }),
+    },
+  ],
 }
 export const WorkTime: Field = {
   name: 'WorkTime_User',

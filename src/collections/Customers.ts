@@ -1,5 +1,6 @@
 import { CollectionConfig } from 'payload'
-import { info, ordersAndDealAndDeal } from '@/fields/Fields_Customers'
+import { ordersAndDealAndDeal } from '@/fields/Fields_Customers'
+import { randomId, checkValue, canUpdateCreateDeleteCustomer } from '@/Hooks/HookCustomers'
 
 export const customers: CollectionConfig = {
   slug: 'customers',
@@ -9,6 +10,20 @@ export const customers: CollectionConfig = {
   },
   admin: {
     useAsTitle: 'nameCustomers',
+    defaultColumns: ['idCustomers', 'nameCustomers', 'typeCustomers', 'phone'],
+    group: 'Quản Lý kinh doanh',
+    hidden: ({ user }) => {
+      if (!user) return true
+      if (user.role === 'admin' || user.employee?.typeDepartment === 'business') {
+        return false
+      }
+      return true
+    },
+  },
+  access: {
+    delete: canUpdateCreateDeleteCustomer,
+    update: canUpdateCreateDeleteCustomer,
+    create: canUpdateCreateDeleteCustomer,
   },
   fields: [
     {
@@ -17,6 +32,15 @@ export const customers: CollectionConfig = {
         {
           label: 'Thông tin khách hàng',
           fields: [
+            {
+              name: 'idCustomers',
+              label: 'Mã khách hàng',
+              type: 'text',
+              admin: {
+                condition: (data) => !!data.idCustomers,
+                readOnly: true,
+              },
+            },
             {
               name: 'nameCustomers',
               label: 'khách hàng/doanh nghiệp',
@@ -72,10 +96,21 @@ export const customers: CollectionConfig = {
           fields: [ordersAndDealAndDeal],
         },
         {
-          label: 'Lịch sử chăm sóc khách hàng',
-          fields: [],
+          label: 'Tài liệu đính kèm',
+          fields: [
+            {
+              name: 'attachments',
+              label: '',
+              type: 'upload',
+              relationTo: 'media',
+              hasMany: true,
+            },
+          ],
         },
       ],
     },
   ],
+  hooks: {
+    beforeValidate: [randomId, checkValue],
+  },
 }

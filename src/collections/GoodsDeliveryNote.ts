@@ -10,6 +10,9 @@ import {
   updateReport,
   checkTime,
   changeStatus,
+  autoEmployee,
+  canRead,
+  canUpdate,
 } from '@/Hooks/HookWarehousing'
 import { machine, materials } from '@/fields/Fields_GoodDeliveryNote'
 export const goodsDeliveryNote: CollectionConfig = {
@@ -20,6 +23,14 @@ export const goodsDeliveryNote: CollectionConfig = {
   },
   admin: {
     useAsTitle: 'goodsDeliveryNoteID',
+    group: 'Quản lý Kho hàng',
+    defaultColumns: ['goodsDeliveryNoteID', 'chose', 'date', 'voucherMaker'],
+  },
+  access: {
+    read: canRead,
+    update: canUpdate,
+    delete: canUpdate,
+    create: canUpdate,
   },
   fields: [
     {
@@ -79,14 +90,34 @@ export const goodsDeliveryNote: CollectionConfig = {
                       data.chose === 'tieuhuysanpham' ||
                       data.chose === 'chuyenkhosanpham',
                   },
-                  filterOptions: ({ data }) => {
+                  filterOptions: async ({ req, data }) => {
+                    const user = req.user
+                    const idDepartment =
+                      typeof user?.employee?.department === 'object' &&
+                      user?.employee?.department !== null
+                        ? user?.employee?.department.id
+                        : user?.employee?.department
+                    if (!user) return false
                     if (!data) return false
+                    const find = await req.payload.find({
+                      collection: 'Products_Inventory',
+                      where: {
+                        employee: { equals: idDepartment },
+                      },
+                    })
                     if (data.chose === 'chuyenkhosanpham') {
                       return {
                         id: { not_equals: data.inventoryProduc },
                       }
                     }
-                    return true
+                    return {
+                      id: {
+                        in:
+                          find.docs.map((dt) => dt.id).length !== 0
+                            ? find.docs.map((dt) => dt.id)
+                            : null,
+                      },
+                    }
                   },
                 },
                 {
@@ -116,6 +147,7 @@ export const goodsDeliveryNote: CollectionConfig = {
               type: 'relationship',
               relationTo: 'orders',
               admin: {
+                allowCreate: false,
                 condition: (data) => data.chose === 'order',
               },
             },
@@ -135,14 +167,34 @@ export const goodsDeliveryNote: CollectionConfig = {
                       data.chose === 'tieuhuy' ||
                       data.chose === 'chuyenkho',
                   },
-                  filterOptions: ({ data }) => {
+                  filterOptions: async ({ data, req }) => {
+                    const user = req.user
+                    const idDepartment =
+                      typeof user?.employee?.department === 'object' &&
+                      user?.employee?.department !== null
+                        ? user?.employee?.department.id
+                        : user?.employee?.department
                     if (!data) return false
+                    if (!user) return false
+                    const find = await req.payload.find({
+                      collection: 'MaterialsAndMachine_Inventory',
+                      where: {
+                        managerInventory: { equals: idDepartment },
+                      },
+                    })
                     if (data.chose === 'chuyenkho') {
                       return {
                         id: { not_equals: data.inventoryMTo },
                       }
                     }
-                    return true
+                    return {
+                      id: {
+                        in:
+                          find.docs.map((dt) => dt.id).length !== 0
+                            ? find.docs.map((dt) => dt.id)
+                            : null,
+                      },
+                    }
                   },
                 },
                 {
@@ -173,25 +225,38 @@ export const goodsDeliveryNote: CollectionConfig = {
               type: 'text',
             },
             {
-              name: 'employee',
-              label: 'Người nhận hàng',
-              type: 'relationship',
-              relationTo: 'users',
-            },
-            {
               name: 'voucherMaker',
               label: 'Người lập phiếu',
               type: 'relationship',
               relationTo: 'users',
+              admin: {
+                condition: (data) => !!data.voucherMaker,
+                readOnly: true,
+              },
             },
           ],
           label: 'Thông Tin Phiếu Xuất',
         },
         {
           label: 'Sản phẩm ',
+          admin: {
+            condition: (data) => {
+              if (
+                data.chose === 'order' ||
+                data.chose === 'tieuhuysanpham' ||
+                data.chose === 'chuyenkhosanpham'
+              ) {
+                return true
+              }
+              return false
+            },
+          },
           fields: [
             {
               name: 'produce',
+              admin: {
+                initCollapsed: true,
+              },
               type: 'array',
               fields: [
                 {
@@ -200,6 +265,7 @@ export const goodsDeliveryNote: CollectionConfig = {
                   type: 'relationship',
                   relationTo: 'products',
                   admin: {
+                    allowCreate: false,
                     condition: (data) => {
                       if (!data.inventory) return false
                       return true
@@ -289,10 +355,18 @@ export const goodsDeliveryNote: CollectionConfig = {
         },
         {
           label: 'Vật liệu',
+          admin: {
+            condition: (data) =>
+              data.chose === 'sanxuat' || data.chose === 'tieuhuy' || data.chose === 'chuyenkho',
+          },
           fields: [materials],
         },
         {
           label: 'Máy móc',
+          admin: {
+            condition: (data) =>
+              data.chose === 'sanxuat' || data.chose === 'tieuhuy' || data.chose === 'chuyenkho',
+          },
           fields: [machine],
         },
         {
@@ -303,6 +377,17 @@ export const goodsDeliveryNote: CollectionConfig = {
               label: 'Sản phẩm',
               type: 'array',
               admin: {
+                initCollapsed: true,
+                condition: (data) => {
+                  if (
+                    data.chose === 'order' ||
+                    data.chose === 'tieuhuysanpham' ||
+                    data.chose === 'chuyenkhosanpham'
+                  ) {
+                    return true
+                  }
+                  return false
+                },
                 readOnly: true,
                 description: 'Thống kê sản phẩm đã xuất',
               },
@@ -318,6 +403,7 @@ export const goodsDeliveryNote: CollectionConfig = {
                   label: 'Thống kê',
                   type: 'array',
                   admin: {
+                    initCollapsed: true,
                     readOnly: true,
                   },
                   fields: [
@@ -344,7 +430,12 @@ export const goodsDeliveryNote: CollectionConfig = {
               name: 'reportMaterial',
               label: 'Vật liệu',
               type: 'array',
+
               admin: {
+                condition: (data) =>
+                  data.chose === 'sanxuat' ||
+                  data.chose === 'tieuhuy' ||
+                  data.chose === 'chuyenkho',
                 description: 'Thống kê vật liệu đã nhập',
                 readOnly: true,
                 initCollapsed: false,
@@ -363,6 +454,9 @@ export const goodsDeliveryNote: CollectionConfig = {
                   name: 'report',
                   label: 'Thống kê',
                   type: 'array',
+                  admin: {
+                    initCollapsed: true,
+                  },
                   fields: [
                     {
                       name: 'reportMaterialSoLuong',
@@ -403,6 +497,10 @@ export const goodsDeliveryNote: CollectionConfig = {
               label: 'Máy móc',
               type: 'array',
               admin: {
+                condition: (data) =>
+                  data.chose === 'sanxuat' ||
+                  data.chose === 'tieuhuy' ||
+                  data.chose === 'chuyenkho',
                 description: 'Thống kê máy moc đã nhập',
                 readOnly: true,
                 initCollapsed: false,
@@ -421,6 +519,9 @@ export const goodsDeliveryNote: CollectionConfig = {
                   name: 'report',
                   label: 'Thống kê',
                   type: 'array',
+                  admin: {
+                    initCollapsed: true,
+                  },
                   fields: [
                     {
                       name: 'reportMachinesSoLuong',
@@ -480,15 +581,6 @@ export const goodsDeliveryNote: CollectionConfig = {
                 },
               ],
             },
-            {
-              name: 'payType',
-              label: 'Hình thức thanh toán',
-              type: 'select',
-              options: [
-                { label: 'Tiền mặt', value: 'tienmat' },
-                { label: 'Chuyển khoản', value: 'chuyenkhoan' },
-              ],
-            },
           ],
         },
       ],
@@ -498,6 +590,6 @@ export const goodsDeliveryNote: CollectionConfig = {
     beforeChange: [priceProduct, updateReport],
     afterRead: [totalValueProduce],
     afterChange: [setUpdateSoluong, changeStatus],
-    beforeValidate: [rondomID, checkValue, checkTime, checkValueSoluong],
+    beforeValidate: [rondomID, checkValue, checkTime, checkValueSoluong, autoEmployee],
   },
 }
